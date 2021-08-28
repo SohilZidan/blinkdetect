@@ -1,0 +1,3 @@
+[submodule "third-party/IctuOculi"]
+	path = third-party/IctuOculi
+	url = https://github.com/yuezunli/WIFS2018_In_Ictu_Oculi.git
