@@ -1,3 +1,6 @@
 [submodule "third-party/IctuOculi"]
 	path = third-party/IctuOculi
 	url = https://github.com/yuezunli/WIFS2018_In_Ictu_Oculi.git
+[submodule "third-party/ddfa"]
+	path = third-party/ddfa
+	url = git@github.com:SohilZidan/3DDFA_V2.git
