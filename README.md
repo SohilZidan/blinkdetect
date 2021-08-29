@@ -18,3 +18,24 @@
 * clone this repository: `git clone --recursive <project url>`
 * cd <project url>
 * sh ./build.sh
+
+### Steps
+1. generate frames of the videos
+   * place videos inside <repo_root>/dataset/BlinkingValidationSetVideos
+   * run generate_frames_v2.sh
+   * the output structure of the videos is as follows:
+      ```
+      ├── BlinkingValidationSetVideos
+      │   ├── video_1.ext
+      |   ├── video_1
+      │   │   ├── frames
+      │   │   |   ├── 000000.png
+      │   │   |   ├── 000001.png
+      │   │   |   ├── ...
+      │   ├── video_2.ext
+      │   ├── ...
+      │   └── video_n.ext
+      ├── ...
+      └── ...
+      ```
+2. 

@@ -4,16 +4,16 @@
 import argparse
 import os
 import logging
+from tqdm import tqdm
 
 import torch
 from torch.nn import MSELoss, BCEWithLogitsLoss, Sigmoid
 
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+
 from blinkdetect.models.blinkdetection import BlinkDetector
-
-
 from blinkdetect.dataset import BlinkDataset1C, BlinkDataset2C, BlinkDataset4C
-
-from tqdm import tqdm
 
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import classification_report
@@ -47,7 +47,7 @@ if __name__ == '__main__':
     if args.dataset_path == "":
           _name, _ = os.path.basename(args.annotation_file).split(".")
           _, _version = _name.split("-")
-          dataset_path = os.path.join(os.path.dirname(__file__), "dataset", "augmented_signals", "versions", _version, "training")
+          dataset_path = os.path.join(os.path.dirname(__file__), ".." , "dataset", "augmented_signals", "versions", _version, "training")
     else:
           dataset_path = args.dataset_path
     
