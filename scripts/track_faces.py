@@ -15,8 +15,12 @@ import cv2
 import matplotlib.pyplot as plt
 from deepface.commons import functions,  distance as dst
 import time
+import sys
+lib_dir = os.path.join(os.path.dirname(__file__), "..")
+sys.path.append(lib_dir)
 # 
-from klt_tracker import KLT
+from blinkdetect.tracking.klt_tracker import KLT
+
 # from deepface import DeepFace
 
 dataset_root = os.path.join(os.path.dirname(__file__), "..", "dataset")
