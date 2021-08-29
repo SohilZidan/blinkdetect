@@ -10,7 +10,7 @@ from argusutil.annotation.annotation import AnnotationOfIntervals, Interval,  Un
 from argusutil.annotation import deserializeAnnotation
 
 
-VIDEO_IDS = ["35", "37", "38", "40", "42", "47"]
+# VIDEO_IDS = ["35", "37", "38", "40", "42", "47"]
 
 dataset = os.path.join(os.path.dirname(__file__), "..", "dataset", "blinking-gt")
 gt_start_end_index_path = os.path.join(dataset,  "gt_start_end_index.csv")
@@ -20,7 +20,7 @@ def annotation_for_name(name, annotation_predictions, path):
 
 def get_blinking_annotation(pid: str):
 
-    assert pid.strip() in VIDEO_IDS, f"participant {pid} not available"
+    # assert pid.strip() in VIDEO_IDS, f"participant {pid} not available"
 
     gt_blinking_annotation = deserializeAnnotation(json.load(
             open(os.path.join(dataset,"gt_index", f"aniko_annot_{pid}_blinking.json"), "r")))

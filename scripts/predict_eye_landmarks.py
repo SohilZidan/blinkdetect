@@ -13,7 +13,6 @@ import cv2
 import torch
 import scipy
 import tqdm
-import sys
 
 import sys
 lib_dir = os.path.join(os.path.dirname(__file__), "..")
@@ -54,7 +53,7 @@ eye_indices = {"left":left_eye_indices, "right":right_eye_indices}
 
 def parser():
     _parser = argparse.ArgumentParser()
-    _parser.add_argument('-pid', '--participant_id', required=True)
+    # _parser.add_argument('-pid', '--participant_id', required=True)
     _parser.add_argument('-rng', '--range', type=int, default=[0,-1], nargs=2)
     _parser.add_argument('--batch', type=int, default=32, help='number of frames to be saved as a batch')
     _parser.add_argument('--resume', action='store_true', help='if true existed frames of an existed participant will not be replaced')
@@ -65,7 +64,6 @@ def parser():
 def eyelids_directed_hausdorff(set1_indices: list, set2_indices: list, landmarks: np.ndarray):
     A = landmarks[:, set1_indices[0]:set1_indices[1], 0:2].reshape((-1,2))
     B = landmarks[:, set2_indices[0]:set2_indices[1], 0:2].reshape((-1,2))
-    # print(" A:\n",A,'\n',"B:\n",B)
 
     return directed_hausdorff(B,A)[0]
 
@@ -80,7 +78,6 @@ def extract_eye_region(face: np.ndarray, facemeshnet, iris_net):
 
         # get eye markers
         _detections = np.array(list(map(detections.__getitem__, eye_indices[_eye])))
-        # detections_left = np.array(list(map(detections.__getitem__, right_eye)))
 
         # compute the center and enlarge
         eye_center=np.mean(_detections,axis=0)
@@ -117,8 +114,6 @@ def extract_eye_region(face: np.ndarray, facemeshnet, iris_net):
         pupil_center=(int(x_pupil_center), int(y_pupil_center))
 
         resp[_eye] = {"eye_region": eye_region, "eye_corners":eye_corners, "pupil_center":pupil_center, "eye":eye[:, frm:to, :]}
-        # eye_region, eye_corners, pupil_center, eye
-
 
     return resp
 
@@ -151,7 +146,9 @@ def color_analysis(eye_region, eye_corners, pupil_center, eye):
         # measurements  
         _std.append(np.std(zi))
         _mean.append(np.mean(zi))
+
     return line_points, _std, _mean, _eyelids_dist
+
 
 def saveEyeChange(eye_region, color_value, file_name, line_points, line_type: str="straight"):
     _std = np.std(color_value)
@@ -310,117 +307,116 @@ def predict_eye_region(images_paths: list, facesInfo: pd.DataFrame, facemeshnet,
 
 if __name__=='__main__':
     args = parser()
-    participant_id = args.participant_id
+    # participant_id = args.participant_id
     start, end = args.range
     resume = args.resume
     _save_faces = args.save_faces
 
-    frames_path=os.path.join(dataset_root, "BlinkingValidationSetVideos",participant_id, "frames") 
-
-    # Input
-    input_path = os.path.join(dataset_root, 'tracked_faces', f'{participant_id}')
-    input_path_file_hdf5 = os.path.join(input_path, "faceinfo.hdf5")
-
-    # Output
-    output_path = os.path.join(dataset_root, "eye_landmarks", f"{participant_id}")
-    output_file_path_csv = os.path.join(output_path, f"eyeinfo.csv")
-    output_file_path_hdf5 = os.path.join(output_path, f"eyeinfo.hdf5")
-
-    # checking
-    assert os.path.exists(frames_path), f"frames folder {frames_path} not found"
-    assert os.path.exists(input_path_file_hdf5), f"faces info file {input_path_file_hdf5} not found"
     # 
+    all_files = glob.glob(f'{os.path.join(dataset_root, "BlinkingValidationSetVideos")}/*')
+    videos_folders = [_item for _item in all_files if os.path.isdir(_item)]
+    # 
+    for video_folder in videos_folders:
+        video_name = os.path.basename(video_folder)
+        frames_path=os.path.join(video_folder, "frames") 
+
+        # Input
+        input_path = os.path.join(dataset_root, 'tracked_faces', f'{video_name}')
+        input_path_file_hdf5 = os.path.join(input_path, "faceinfo.hdf5")
+
+        # Output
+        output_path = os.path.join(dataset_root, "eye_landmarks", f"{video_name}")
+        output_file_path_csv = os.path.join(output_path, f"eyeinfo.csv")
+        output_file_path_hdf5 = os.path.join(output_path, f"eyeinfo.hdf5")
+
+        # checking
+        assert os.path.exists(frames_path), f"frames folder {frames_path} not found"
+        assert os.path.exists(input_path_file_hdf5), f"faces info file {input_path_file_hdf5} not found"
     
+        # input
+        with pd.HDFStore(input_path_file_hdf5) as store:
+            _data_df = store['tracked_faces_dataset_01']
 
-
-
-    # input
-    with pd.HDFStore(input_path_file_hdf5) as store:
-        _data_df = store['tracked_faces_dataset_01']
-
-    # except frames
-    _except_frames = []
-    if os.path.exists(output_file_path_hdf5) and resume and os.path.exists(output_file_path_hdf5):
-        with pd.HDFStore(output_file_path_hdf5) as store:
-            _data_df = store['eyes_info_dataset_01']
-            # _except_frames = store['except_frames']
-            _except_frames.extend(list(_data_df.loc[participant_id].index))
-    
-    else:
-        
-        shutil.rmtree(output_path, ignore_errors=True)
-        os.makedirs(output_path, exist_ok=True)
-
-
-    # load images
-    _images = sorted(glob.glob(f"{frames_path}/*.png")) 
-    if end == -1: end = len(glob.glob(f"{frames_path}/*.png"))
-
-    # Load models:
-    # face mesh
-    facemeshnet = FaceMesh().to(gpu)
-    facemeshnet.load_weights(FACE_MESH_MODEL_PATH)
-    iris_net = IrisLandmarks().to(gpu)
-    iris_net.load_weights(IRIS_MODEL_PATH)
-
-
-    total_range = end-start
-    batch = args.batch
-    _iterations = ceil(total_range/batch)
-
-    _data_df = _data_df.loc[(_data_df.index.get_level_values('participant_id') == participant_id) & (_data_df.index.get_level_values('face_id') == 'face_1')].reset_index(level=['participant_id', 'face_id'])
-    # outputDF = _data_df.copy()
-
-
-    for i in tqdm.tqdm(range(_iterations), total=_iterations):
-        _batch_start = start+batch*i
-        _batch_end = min(start+batch*(i+1),end)
-        print(f"batch {i} --> {_batch_start}, {_batch_end}")
-        # get images
-        images_names = [os.path.basename(_path).split(".")[0] for _path in _images[_batch_start: _batch_end]]
-        currentInputDF = _data_df.loc[_data_df.index.isin(images_names)]
-        
-        currentOutputDF, processed_images, _ = predict_eye_region(
-                                                        images_paths=_images[_batch_start: _batch_end], 
-                                                        facesInfo=currentInputDF, 
-                                                        facemeshnet=facemeshnet, 
-                                                        iris_net=iris_net, 
-                                                        frames_exception=_except_frames, 
-                                                        save_faces=_save_faces, 
-                                                        save_eye_change="")
-
-        # reindexing
-        currentOutputDF = currentOutputDF.set_index(keys=['participant_id', 'face_id'], append=True).reorder_levels([1,0,2])
-        if os.path.exists(output_file_path_hdf5):
+        # except frames
+        _except_frames = []
+        if os.path.exists(output_file_path_hdf5) and resume and os.path.exists(output_file_path_hdf5):
             with pd.HDFStore(output_file_path_hdf5) as store:
-                stored_data_df = store['eyes_info_dataset_01']
-                metadata = store.get_storer('eyes_info_dataset_01').attrs.metadata
-            concatenated_df = pd.concat([stored_data_df, currentOutputDF])
+                _data_df = store['eyes_info_dataset_01']
+                # _except_frames = store['except_frames']
+                _except_frames.extend(list(_data_df.loc[video_name].index))
         else:
-            concatenated_df = currentOutputDF.copy()
+            shutil.rmtree(output_path, ignore_errors=True)
+            os.makedirs(output_path, exist_ok=True)
 
-        
-        
-        concatenated_df = concatenated_df[~concatenated_df.index.duplicated(keep='last')]
-        concatenated_df = concatenated_df.sort_index()
-        # save to csv
-        concatenated_df.to_csv(output_file_path_csv)
-        # save
-        # save to hd5
-        store = pd.HDFStore(output_file_path_hdf5)
-        store.put('eyes_info_dataset_01', concatenated_df)
-        # store.put('except_frames', _frames_names)
-        metadata = {
-            'info':"""
-                    color values are obtained alongsidethe 
-                    lines segments connecting the center of the iris 
-                    with the two corners of the eye as a series starting from the left corner of the eye,\n
-                    the following informations are available:
-                    mean color value\n
-                    standard deviation\n
-                    distance between the upper and the lower eyelids `directed_hausdorff`
-                    """
-            }
-        store.get_storer('eyes_info_dataset_01').attrs.metadata = metadata
-        store.close()
-        print(f"results saved into {output_file_path_hdf5}")
+
+        # load images
+        _images = sorted(glob.glob(f"{frames_path}/*.png")) 
+        if end == -1: end = len(glob.glob(f"{frames_path}/*.png"))
+
+        # Load models:
+        # face mesh
+        facemeshnet = FaceMesh().to(gpu)
+        facemeshnet.load_weights(FACE_MESH_MODEL_PATH)
+        iris_net = IrisLandmarks().to(gpu)
+        iris_net.load_weights(IRIS_MODEL_PATH)
+
+
+        total_range = end-start
+        batch = args.batch
+        _iterations = ceil(total_range/batch)
+
+        _data_df = _data_df.loc[(_data_df.index.get_level_values('participant_id') == video_name) & (_data_df.index.get_level_values('face_id') == 'face_1')].reset_index(level=['participant_id', 'face_id'])
+
+
+        for i in tqdm.tqdm(range(_iterations), total=_iterations):
+            _batch_start = start+batch*i
+            _batch_end = min(start+batch*(i+1),end)
+            print(f"batch {i} --> {_batch_start}, {_batch_end}")
+            # get images
+            images_names = [os.path.basename(_path).split(".")[0] for _path in _images[_batch_start: _batch_end]]
+            currentInputDF = _data_df.loc[_data_df.index.isin(images_names)]
+            
+            currentOutputDF, processed_images, _ = predict_eye_region(
+                                                            images_paths=_images[_batch_start: _batch_end], 
+                                                            facesInfo=currentInputDF, 
+                                                            facemeshnet=facemeshnet, 
+                                                            iris_net=iris_net, 
+                                                            frames_exception=_except_frames, 
+                                                            save_faces=_save_faces, 
+                                                            save_eye_change="")
+
+            # reindexing
+            currentOutputDF = currentOutputDF.set_index(keys=['participant_id', 'face_id'], append=True).reorder_levels([1,0,2])
+            if os.path.exists(output_file_path_hdf5):
+                with pd.HDFStore(output_file_path_hdf5) as store:
+                    stored_data_df = store['eyes_info_dataset_01']
+                    metadata = store.get_storer('eyes_info_dataset_01').attrs.metadata
+                concatenated_df = pd.concat([stored_data_df, currentOutputDF])
+            else:
+                concatenated_df = currentOutputDF.copy()
+
+            
+            
+            concatenated_df = concatenated_df[~concatenated_df.index.duplicated(keep='last')]
+            concatenated_df = concatenated_df.sort_index()
+            # save to csv
+            concatenated_df.to_csv(output_file_path_csv)
+            # save
+            # save to hd5
+            store = pd.HDFStore(output_file_path_hdf5)
+            store.put('eyes_info_dataset_01', concatenated_df)
+            # store.put('except_frames', _frames_names)
+            metadata = {
+                'info':"""
+                        color values are obtained alongsidethe 
+                        lines segments connecting the center of the iris 
+                        with the two corners of the eye as a series starting from the left corner of the eye,\n
+                        the following informations are available:
+                        mean color value\n
+                        standard deviation\n
+                        distance between the upper and the lower eyelids `directed_hausdorff`
+                        """
+                }
+            store.get_storer('eyes_info_dataset_01').attrs.metadata = metadata
+            store.close()
+            print(f"results saved into {output_file_path_hdf5}")

@@ -21,13 +21,12 @@ sys.path.append(lib_dir)
 # 
 from blinkdetect.tracking.klt_tracker import KLT
 
-# from deepface import DeepFace
 
 dataset_root = os.path.join(os.path.dirname(__file__), "..", "dataset")
 
 def parser():
     _parser = argparse.ArgumentParser()
-    _parser.add_argument('-pid', '--participant_id', required=True)
+    # _parser.add_argument('-pid', '--participant_id', required=True)
     _parser.add_argument('-rng', '--range', type=int, default=[0,-1], nargs=2)
     _parser.add_argument('--batch', type=int, default=32, help='number of frames to be saved as a batch')
     _parser.add_argument('--resume', action='store_true', help='if true existed frames of an existed participant will not be replaced')
@@ -227,9 +226,6 @@ def closest_pairs(A: np.ndarray, B: np.ndarray):
     cost = np.linalg.norm(B.reshape(-1,2)[:,np.newaxis,:] - A.reshape(-1,2), axis=2)
     _, indexes = scipy.optimize.linear_sum_assignment(cost)
     return A[indexes]
-
-    
-import sys
 
 
 def track_faces_v1(img_path, dets, prev_faces={},frame_number="", closest = False):
@@ -731,11 +727,10 @@ def track_faces_batch(
 
 
 if __name__=="__main__":
-    # sys.stdout = open('log.txt', 'w')
 
 
     args = parser()
-    participant_id = args.participant_id
+    # participant_id = args.participant_id
     start, end = args.range
     resume = args.resume
     method = args.method
@@ -743,169 +738,153 @@ if __name__=="__main__":
     _closest = args.closest
 
     # 
-    frames_root=os.path.join(dataset_root, "BlinkingValidationSetVideos",participant_id, "frames")
+    all_files = glob.glob(f'{os.path.join(dataset_root, "BlinkingValidationSetVideos")}/*')
+    videos_folders = [_item for _item in all_files if os.path.isdir(_item)]
+    # 
+    for video_folder in videos_folders:
+        video_name = os.path.basename(video_folder)
+        frames_root=os.path.join(video_folder, "frames")
     
-    faces_detection_file_path = os.path.join(dataset_root,"faces", participant_id, 'faceinfo_v2.pkl')
-    assert os.path.exists(faces_detection_file_path), f"faces detection file {faces_detection_file_path} not found"
-    tracked_faces_root = os.path.join(dataset_root,"tracked_faces", participant_id)
+        faces_detection_file_path = os.path.join(dataset_root,"faces", video_name, 'faceinfo_v2.pkl')
+        assert os.path.exists(faces_detection_file_path), f"faces detection file {faces_detection_file_path} not found"
+        tracked_faces_root = os.path.join(dataset_root,"tracked_faces", video_name)
 
-    faceinfo_file_path_csv = os.path.join(tracked_faces_root, "faceinfo.csv")
-    faceinfo_file_path_hdf5 = os.path.join(tracked_faces_root, "faceinfo.hdf5")
+        faceinfo_file_path_csv = os.path.join(tracked_faces_root, "faceinfo.csv")
+        faceinfo_file_path_hdf5 = os.path.join(tracked_faces_root, "faceinfo.hdf5")
 
-    last_faces_info = os.path.join(tracked_faces_root, 'last_faces')
-
-
-    # pickle.dump(favorite_color, open( faceinfo_file_path_pkl, "wb" ) )
-    # favorite_color = pickle.load( open( faceinfo_file_path_pkl, "rb" ) )
-    # emptying the folder in case of not resuming
-    if not resume and os.path.exists(tracked_faces_root):
-        shutil.rmtree(tracked_faces_root)
-
-    os.makedirs(tracked_faces_root,exist_ok=True)
-    os.makedirs(last_faces_info,exist_ok=True)
-
-    # when resume is set, existed participant_id,frame_num indices will not be processed
-    _except_frames = [] # for resuming
-    _last_faces = {} # for tracking
+        last_faces_info = os.path.join(tracked_faces_root, 'last_faces')
 
 
-    _data_df=None
-    if resume:
-        if os.path.exists(last_faces_info):
-            _faces_paths = glob.glob(f"{last_faces_info}/*.jpg")
-            for _face_path in _faces_paths:
-                # 
-                _face = cv2.imread(_face_path)
-                img_name = os.path.basename(_face_path)
-                _face_id, _ext = img_name.split(".")
-                # _frame, _face_id = _name.split('_')
-                _last_faces[_face_id] = {"img_path": _face}#, 'frame': _frame}
+        # emptying the folder in case of not resuming
+        if not resume and os.path.exists(tracked_faces_root):
+            shutil.rmtree(tracked_faces_root)
+
+        os.makedirs(tracked_faces_root,exist_ok=True)
+        os.makedirs(last_faces_info,exist_ok=True)
+
+        # when resume is set, existed participant_id,frame_num indices will not be processed
+        _except_frames = [] # for resuming
+        _last_faces = {} # for tracking
+
+
+        _data_df=None
+        if resume:
+            if os.path.exists(last_faces_info):
+                _faces_paths = glob.glob(f"{last_faces_info}/*.jpg")
+                for _face_path in _faces_paths:
+                    # 
+                    _face = cv2.imread(_face_path)
+                    img_name = os.path.basename(_face_path)
+                    _face_id, _ext = img_name.split(".")
+                    # _frame, _face_id = _name.split('_')
+                    _last_faces[_face_id] = {"img_path": _face}#, 'frame': _frame}
+                
+                if os.path.exists(faceinfo_file_path_hdf5):
+                    with pd.HDFStore(faceinfo_file_path_hdf5) as store:
+                        _data_df = store['tracked_faces_dataset_01']
+
+                    if video_name in _data_df.index:
+                        _except_frames.extend(list(_data_df.loc[video_name].index))
+    
+
+    
+        # load images
+        _images = sorted(glob.glob(f"{frames_root}/*.png")) 
+        if end == -1: end = len(glob.glob(f"{frames_root}/*.png"))
+
+        # load detections
+        with open(faces_detection_file_path, "rb") as _dets_file:
+            _detections = pickle.load(_dets_file)
+
+        total_range = end-start
+        batch = args.batch
+        _iterations = ceil(total_range/batch)
+        # 
+        for i in tqdm.tqdm(range(_iterations), total=_iterations):
+            _batch_start = start+batch*i
+            _batch_end = min(start+batch*(i+1),end)
+            # print(_last_faces)
+            _tracking_resp, _last_faces = track_faces_batch(images_paths=_images, detections=_detections,start=_batch_start, end=_batch_end, frames_exception=_except_frames, prev_faces=_last_faces, method=method, limit_angle=_limit, closest=_closest)
+            # _new_detections = extract_faces(
+            #                                                     images_paths=_images, 
+            #                                                     start=_batch_start, 
+            #                                                     end=_batch_end, 
+            #                                                     frames_exception=_except_frames, 
+            #                                                     output_dir=faces_root)
+
+            # _all_detections = {**_old_detections, **_new_detections}
+
+            # Save last faces:
+            # if os.path.exists(last_faces_info):
+            # _faces_paths = glob.glob(f"{last_faces_info}/*.jpeg")
+            # print(_last_faces)
+            for _face in _last_faces:
+                # {_last_faces[_face]['frame']}_
+                _path = os.path.join(last_faces_info, f"{_face}.jpg")
+                cv2.imwrite(_path, _last_faces[_face]['img_path'])
             
-            if os.path.exists(faceinfo_file_path_hdf5):
-                with pd.HDFStore(faceinfo_file_path_hdf5) as store:
-                    _data_df = store['tracked_faces_dataset_01']
+            # if i == 10:
+            #     exit()
+                
+            # for _face_path in _faces_paths:
+            #     # 
+            #     _face = cv2.imread(_face_path)
+            #     img_name = os.path.basename(_face_path)
+            #     _name, _ext = img_name.split(".")
+            #     _, _face_id = _name.split('_')
+            #     _last_faces[_face_id] = {"img_path": _face}
 
-                if participant_id in _data_df.index:
-                    _except_frames.extend(list(_data_df.loc[participant_id].index))
-    
-
-    
-   # load images
-    _images = sorted(glob.glob(f"{frames_root}/*.png")) 
-    if end == -1: end = len(glob.glob(f"{frames_root}/*.png"))
-
-    # load detections
-    with open(faces_detection_file_path, "rb") as _dets_file:
-        _detections = pickle.load(_dets_file)
-
-    total_range = end-start
-    batch = args.batch
-    _iterations = ceil(total_range/batch)
-    # print(_iterations)
-    for i in tqdm.tqdm(range(_iterations), total=_iterations):
-        _batch_start = start+batch*i
-        _batch_end = min(start+batch*(i+1),end)
-        # print(_last_faces)
-        _tracking_resp, _last_faces = track_faces_batch(images_paths=_images, detections=_detections,start=_batch_start, end=_batch_end, frames_exception=_except_frames, prev_faces=_last_faces, method=method, limit_angle=_limit, closest=_closest)
-        # _new_detections = extract_faces(
-        #                                                     images_paths=_images, 
-        #                                                     start=_batch_start, 
-        #                                                     end=_batch_end, 
-        #                                                     frames_exception=_except_frames, 
-        #                                                     output_dir=faces_root)
-
-        # _all_detections = {**_old_detections, **_new_detections}
-
-        # Save last faces:
-        # if os.path.exists(last_faces_info):
-        # _faces_paths = glob.glob(f"{last_faces_info}/*.jpeg")
-        # print(_last_faces)
-        for _face in _last_faces:
-            # {_last_faces[_face]['frame']}_
-            _path = os.path.join(last_faces_info, f"{_face}.jpg")
-            cv2.imwrite(_path, _last_faces[_face]['img_path'])
-        
-        # if i == 10:
-        #     exit()
+            # save the results
+            # if os.path.exists(eyeinfo_file_path_hdf5):
+            #     with pd.HDFStore(eyeinfo_file_path_hdf5) as store:
+            #         _data_df = store['dataset_02']
+            #         metadata = store.get_storer('dataset_02').attrs.metadata
             
-        # for _face_path in _faces_paths:
-        #     # 
-        #     _face = cv2.imread(_face_path)
-        #     img_name = os.path.basename(_face_path)
-        #     _name, _ext = img_name.split(".")
-        #     _, _face_id = _name.split('_')
-        #     _last_faces[_face_id] = {"img_path": _face}
+            data_array = []
+            for _frame in _tracking_resp:
+                # _tracking_resp[_frame]
+                _faces_not_found = _tracking_resp[_frame]['faces_not_found']
+                _faces_number = _tracking_resp[_frame]['faces_number']
+                _img_path = _tracking_resp[_frame]['img_path']
+                left,top,right,bottom = [0,0,0,0]
+                left_eye_x, left_eye_y = [0,0]
+                right_eye_x, right_eye_y = [0,0]
+                nose_x, nose_y = [0,0]
+                yaw, pitch, roll = [0,0,0]
+                if _faces_number == 0:
+                    data_array.append([video_name, _frame, _face,_img_path, _faces_not_found, _faces_number, left,top,right,bottom, left_eye_x, left_eye_y, right_eye_x, right_eye_y, nose_x, nose_y, yaw, pitch, roll])
+                # face data
+                for _face in _tracking_resp[_frame]['faces']:
+                    left,top,right,bottom = _tracking_resp[_frame]['faces'][_face]['facial_area']['bbox']
+                    left_eye_x, left_eye_y = _tracking_resp[_frame]['faces'][_face]['left_eye']
+                    right_eye_x, right_eye_y = _tracking_resp[_frame]['faces'][_face]['right_eye']
+                    nose_x, nose_y = _tracking_resp[_frame]['faces'][_face]['nose']
+                    # 
+                    yaw = _tracking_resp[_frame]['faces'][_face]['yaw']
+                    pitch = _tracking_resp[_frame]['faces'][_face]['pitch']
+                    roll = _tracking_resp[_frame]['faces'][_face]['roll']
 
-        # save the results
-        # if os.path.exists(eyeinfo_file_path_hdf5):
-        #     with pd.HDFStore(eyeinfo_file_path_hdf5) as store:
-        #         _data_df = store['dataset_02']
-        #         metadata = store.get_storer('dataset_02').attrs.metadata
-        
-        data_array = []
-        for _frame in _tracking_resp:
-            # _tracking_resp[_frame]
-            _faces_not_found = _tracking_resp[_frame]['faces_not_found']
-            _faces_number = _tracking_resp[_frame]['faces_number']
-            _img_path = _tracking_resp[_frame]['img_path']
-            left,top,right,bottom = [0,0,0,0]
-            left_eye_x, left_eye_y = [0,0]
-            right_eye_x, right_eye_y = [0,0]
-            nose_x, nose_y = [0,0]
-            yaw, pitch, roll = [0,0,0]
-            if _faces_number == 0:
-                data_array.append([participant_id, _frame, _face,_img_path, _faces_not_found, _faces_number, left,top,right,bottom, left_eye_x, left_eye_y, right_eye_x, right_eye_y, nose_x, nose_y, yaw, pitch, roll])
-            # face data
-            for _face in _tracking_resp[_frame]['faces']:
-                left,top,right,bottom = _tracking_resp[_frame]['faces'][_face]['facial_area']['bbox']
-                left_eye_x, left_eye_y = _tracking_resp[_frame]['faces'][_face]['left_eye']
-                right_eye_x, right_eye_y = _tracking_resp[_frame]['faces'][_face]['right_eye']
-                nose_x, nose_y = _tracking_resp[_frame]['faces'][_face]['nose']
-                # 
-                yaw = _tracking_resp[_frame]['faces'][_face]['yaw']
-                pitch = _tracking_resp[_frame]['faces'][_face]['pitch']
-                roll = _tracking_resp[_frame]['faces'][_face]['roll']
+                    data_array.append([video_name, _frame, _face,_img_path, _faces_not_found, _faces_number, left,top,right,bottom, left_eye_x, left_eye_y, right_eye_x, right_eye_y, nose_x, nose_y, yaw, pitch, roll])
+            
+            # 
+            # INDEX
+            # 
+            data_np = np.array(data_array)
+            arrays = [
+                data_np[:,0],
+                data_np[:,1],
+                data_np[:,2]
+                ]
 
-                data_array.append([participant_id, _frame, _face,_img_path, _faces_not_found, _faces_number, left,top,right,bottom, left_eye_x, left_eye_y, right_eye_x, right_eye_y, nose_x, nose_y, yaw, pitch, roll])
-        
-        # 
-        # INDEX
-        # 
-        data_np = np.array(data_array)
-        arrays = [
-            data_np[:,0],
-            data_np[:,1],
-            data_np[:,2]
-            ]
+            tuples_indices = list(zip(*arrays))
+            index = pd.MultiIndex.from_tuples(tuples_indices, names=["participant_id", "frame_num", "face_id"])
 
-        tuples_indices = list(zip(*arrays))
-        index = pd.MultiIndex.from_tuples(tuples_indices, names=["participant_id", "frame_num", "face_id"])
-
-        # 
-        # initialize dataframe
-        # 
-        # _data_df = pd.DataFrame(
-        #     columns=["path", "mean_color", "std", "eyelids_dist"], 
-        #     index=index, )
-        # _data_df.astype(dtype={
-        #         # "participant_id":str, 
-        #         # "frame_num":str, 
-        #         "path":str, 
-        #         "mean_color":np.float64, 
-        #         "std":np.float64, 
-        #         "eyelids_dist":np.float64})
-
-        if os.path.exists(faceinfo_file_path_hdf5):
-            with pd.HDFStore(faceinfo_file_path_hdf5) as store:
-                _data_df = store['tracked_faces_dataset_01']
-                metadata = store.get_storer('tracked_faces_dataset_01').attrs.metadata
-        else:
             # 
             # initialize dataframe
             # 
-            _data_df = pd.DataFrame(
-                columns=['img_path', 'faces_not_found', 'faces_number', 'left','top','right','bottom', 'left_eye_x', 'left_eye_y', 'right_eye_x', 'right_eye_y', 'nose_x', 'nose_y', 'yaw', 'pitch', 'roll'], 
-                index=index, )
+            # _data_df = pd.DataFrame(
+            #     columns=["path", "mean_color", "std", "eyelids_dist"], 
+            #     index=index, )
             # _data_df.astype(dtype={
             #         # "participant_id":str, 
             #         # "frame_num":str, 
@@ -913,30 +892,49 @@ if __name__=="__main__":
             #         "mean_color":np.float64, 
             #         "std":np.float64, 
             #         "eyelids_dist":np.float64})
-        
 
-        new_df =  pd.DataFrame(
-            data_np[:,3:], 
-            index=index,
-            columns=['img_path', 'faces_not_found', 'faces_number', 'left','top','right','bottom', 'left_eye_x', 'left_eye_y', 'right_eye_x', 'right_eye_y', 'nose_x', 'nose_y', 'yaw', 'pitch', 'roll'])
-        
-        # merge the two dataframes
-        concatenated_df = pd.concat([_data_df, new_df])
-        concatenated_df = concatenated_df[~concatenated_df.index.duplicated(keep='last')]
-        concatenated_df = concatenated_df.sort_index()
-        # save to csv
-        concatenated_df.to_csv(faceinfo_file_path_csv)
+            if os.path.exists(faceinfo_file_path_hdf5):
+                with pd.HDFStore(faceinfo_file_path_hdf5) as store:
+                    _data_df = store['tracked_faces_dataset_01']
+                    metadata = store.get_storer('tracked_faces_dataset_01').attrs.metadata
+            else:
+                # 
+                # initialize dataframe
+                # 
+                _data_df = pd.DataFrame(
+                    columns=['img_path', 'faces_not_found', 'faces_number', 'left','top','right','bottom', 'left_eye_x', 'left_eye_y', 'right_eye_x', 'right_eye_y', 'nose_x', 'nose_y', 'yaw', 'pitch', 'roll'], 
+                    index=index, )
+                # _data_df.astype(dtype={
+                #         # "participant_id":str, 
+                #         # "frame_num":str, 
+                #         "path":str, 
+                #         "mean_color":np.float64, 
+                #         "std":np.float64, 
+                #         "eyelids_dist":np.float64})
+            
 
-        # save to hd5
-        store = pd.HDFStore(faceinfo_file_path_hdf5)
-        store.put('tracked_faces_dataset_01', concatenated_df)      
-        metadata = {
-            'info':"""
-                    using retina-face
-                    """
-            }
-        store.get_storer('tracked_faces_dataset_01').attrs.metadata = metadata
-        store.close()
-        print(f"results saved into {faceinfo_file_path_hdf5}")
+            new_df =  pd.DataFrame(
+                data_np[:,3:], 
+                index=index,
+                columns=['img_path', 'faces_not_found', 'faces_number', 'left','top','right','bottom', 'left_eye_x', 'left_eye_y', 'right_eye_x', 'right_eye_y', 'nose_x', 'nose_y', 'yaw', 'pitch', 'roll'])
+            
+            # merge the two dataframes
+            concatenated_df = pd.concat([_data_df, new_df])
+            concatenated_df = concatenated_df[~concatenated_df.index.duplicated(keep='last')]
+            concatenated_df = concatenated_df.sort_index()
+            # save to csv
+            concatenated_df.to_csv(faceinfo_file_path_csv)
+
+            # save to hd5
+            store = pd.HDFStore(faceinfo_file_path_hdf5)
+            store.put('tracked_faces_dataset_01', concatenated_df)      
+            metadata = {
+                'info':"""
+                        using retina-face
+                        """
+                }
+            store.get_storer('tracked_faces_dataset_01').attrs.metadata = metadata
+            store.close()
+            print(f"results saved into {faceinfo_file_path_hdf5}")
 
     # sys.stdout.close()

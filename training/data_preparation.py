@@ -8,6 +8,7 @@ warnings.filterwarnings("ignore")
 import os
 import json
 import shutil
+import glob
 from math import ceil, floor
 import argparse
 import pickle
@@ -37,8 +38,6 @@ def check_positive(value):
 if __name__=="__main__":
     
     parser = argparse.ArgumentParser()
-    # parser.add_argument("--confusion", type=str, default="tn", choices=["tn", "tp"], help="tn: true negative\ntp: true positive")
-    # parser.add_argument("--tn_augmentation", action='store_true')
     parser.add_argument("--output_folder", default="")
     parser.add_argument("--generate_plots", action="store_true")
     parser.add_argument("--yaw_range", type=int, default=180)
@@ -107,7 +106,9 @@ if __name__=="__main__":
     minall_lids = 10
     maxall_lids = 0
         
-    PIDS = ["35", "37", "38", "40", "42", "47"]
+    # PIDS = ["35", "37", "38", "40", "42", "47"]
+    all_files = glob.glob(f'{os.path.join(dataset, "BlinkingValidationSetVideos")}/*')
+    PIDS = [os.path.basename(_item) for _item in all_files if os.path.isdir(_item)]
     for pid in tqdm.tqdm(PIDS, total=len(PIDS), desc="participants"):
         # 
         # read data
