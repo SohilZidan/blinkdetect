@@ -5,97 +5,27 @@ from genericpath import exists
 import warnings
 warnings.filterwarnings("ignore")
 
-from ast import parse
+import os
+import json
+import shutil
 from math import ceil, floor
-import random
-from argusutil.annotation.annotation import AnnotationOfIntervals, Interval, Unit
-from cv2 import data
-from matplotlib.figure import Figure
-from torch.types import Number
-from argus_utils import get_intervals, get_intervals_between
-from signal_1d import prolong, extend, shift
-import numpy as np
+import argparse
 import pickle
 
-# def upsample_signal():
-#     pass
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-def resample_noblink(y_in, start, stop, samples=None, upsampling=True):
-    y = y_in.copy()
-    y_roi = y[start:stop+1].copy()
-    blink_length = stop-start+1
-    #     
-    # x = np.linspace(0,len(y)-1, len(y))
-    x_roi = np.linspace(start,stop, len(y_roi))
+import numpy as np
+import tqdm
 
-    blink = np.zeros(len(y)).tolist()
-    # blink[start:stop+1] = np.ones(blink_length, dtype=np.int32).tolist()
-    blink_roi = blink[start:stop+1].copy()
-    # prolong
-    min_len=min(6, len(y_roi))
-    max_len=max(21,len(y_roi))
-    #
-    y_sampled, _num = prolong(y_roi, x_roi, upsampling=upsampling, min_len=min_len, max_len=max_len, Num=samples)
-    _x_sampled = np.linspace(start,start+len(y_sampled)-1, len(y_sampled))
-    try:
-        blink_sampled, _num = prolong(blink_roi,x_roi, min_len=min_len, max_len=max_len,Num=_num)
-    except Exception as e:
-        print()
-        print(len(blink_roi),len(x_roi),_num, start, stop)
-        print()
-        raise(e)
+from argusutil.annotation.annotation import AnnotationOfIntervals, Interval, Unit
 
+from blinkdetect.argus_utils import get_intervals, get_intervals_between
+from blinkdetect.argus_utils import get_blinking_annotation
+from blinkdetect.signal_1d import shift
+from blinkdetect.preprocessing import resample_noblink, upsample_blink, downsample_blink
 
-    # extend
-    # blink period
-    _blink_sampled = blink.copy()
-    _blink_sampled[start:stop+1] = blink_sampled.copy()
-    # signal
-    _y_sampled = y.copy()
-    _y_sampled[start:stop+1] = y_sampled.copy()
-    # 
-    _y_extended, _x_extended = extend(_y_sampled,_x_sampled)
-    _blink_extended, _ = extend(_blink_sampled,_x_sampled, val=0)
-    return _y_extended, _blink_extended.astype(np.int32), _num
-
-def resample_blink(y_in, start, stop, samples=None, upsampling=True):
-    y = y_in.copy()
-    y_roi = y[start:stop+1].copy()
-    blink_length = stop-start+1
-    #     
-    # x = np.linspace(0,len(y)-1, len(y))
-    x_roi = np.linspace(start,stop, len(y_roi))
-
-    blink = np.zeros(len(y)).tolist()
-    blink[start:stop+1] = np.ones(blink_length, dtype=np.int32).tolist()
-    blink_roi = blink[start:stop+1].copy()
-    # prolong
-    min_len=min(6, len(y_roi))
-    max_len=max(21,len(y_roi))
-    #
-    y_sampled, _num = prolong(y_roi, x_roi, upsampling=upsampling, min_len=min_len, max_len=max_len, Num=samples)
-    _x_sampled = np.linspace(start,start+len(y_sampled)-1, len(y_sampled))
-    
-    blink_sampled, _num = prolong(blink_roi,x_roi, min_len=min_len, max_len=max_len,Num=_num)
-
-
-    # extend
-    # blink period
-    _blink_sampled = blink.copy()
-    _blink_sampled[start:stop+1] = blink_sampled.copy()
-    # signal
-    _y_sampled = y.copy()
-    _y_sampled[start:stop+1] = y_sampled.copy()
-    # signals returned of length 60
-    _y_extended, _x_extended = extend(_y_sampled,_x_sampled, num=60)
-    _blink_extended, _ = extend(_blink_sampled,_x_sampled, num=60,val=0)
-    return _y_extended, _blink_extended.astype(np.int32), _num
-
-def upsample_blink(y_in, start, stop, samples=None):
-    return resample_blink(y_in, start, stop,samples, True)
-
-def downsample_blink(y_in, start, stop, samples=None):
-    return resample_blink(y_in, start, stop,samples, False)
+import matplotlib.pyplot as plt
 
 
 def check_positive(value):
@@ -105,20 +35,11 @@ def check_positive(value):
     return ivalue
 
 if __name__=="__main__":
-    import matplotlib.pyplot as plt
-    import pickle
-    from argus_utils import get_blinking_annotation
-    import os
-    import sys
-    import tqdm
-    import json
-    import shutil
-
-    import argparse
+    
     parser = argparse.ArgumentParser()
     # parser.add_argument("--confusion", type=str, default="tn", choices=["tn", "tp"], help="tn: true negative\ntp: true positive")
     # parser.add_argument("--tn_augmentation", action='store_true')
-    parser.add_argument("--output_folder", default=f"")
+    parser.add_argument("--output_folder", default="")
     parser.add_argument("--generate_plots", action="store_true")
     parser.add_argument("--yaw_range", type=int, default=180)
     parser.add_argument("--pitch_range", type=int, default=180)
@@ -132,14 +53,14 @@ if __name__=="__main__":
     print(vars(args))
 
 
-    min_std_r=0.0
-    max_std_r= 70.57724795565552
-    min_std_g= 0.0
-    max_std_g =69.65935905429274
-    min_std_b= 0.0
-    max_std_b =72.89523973711425
-    min_eyelids= 0
-    max_eyelids= 10.102511040619552
+    # min_std_r=0.0
+    # max_std_r= 70.57724795565552
+    # min_std_g= 0.0
+    # max_std_g =69.65935905429274
+    # min_std_b= 0.0
+    # max_std_b =72.89523973711425
+    # min_eyelids= 0
+    # max_eyelids= 10.102511040619552
 
 
 
