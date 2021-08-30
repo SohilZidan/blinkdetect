@@ -12,6 +12,7 @@ import glob
 from math import ceil, floor
 import argparse
 import pickle
+import random
 
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
@@ -47,6 +48,7 @@ if __name__=="__main__":
     parser.add_argument("--overlap", type=int, choices=range(0,30) ,default=0, metavar="[0,30)")
     parser.add_argument("--suffix", default="-v0")
     parser.add_argument("--normalized", action="store_true")
+    parser.add_argument("--equal", action="store_true", help="if set equal numbers of both classes ar generated")
     args = parser.parse_args()
     
     print(vars(args))
@@ -61,7 +63,8 @@ if __name__=="__main__":
     # min_eyelids= 0
     # max_eyelids= 10.102511040619552
 
-
+    
+    random.seed(192020)
 
     # OUTPUT
     dataset = os.path.join(os.path.dirname(__file__), "..", "dataset")
@@ -92,7 +95,8 @@ if __name__=="__main__":
     longest_blink = 0
     dropped_blinks = 0
 
-    annotations = []
+    annotations_0 = []
+    annotations_1 = []
 
     minall_r = 10
     maxall_r = 0
@@ -196,7 +200,7 @@ if __name__=="__main__":
                     
                     _n_frames_skipped = 30 - args.overlap
                     _max_examples = floor((_interval.length+1)/_n_frames_skipped)
-                    _n_required_examples = int(_max_examples/1.5)
+                    _n_required_examples = int(_max_examples)
                     # check if #no-blink is required
                     if args.no_blink is not None: 
                         _n_required_examples = args.no_blink if args.no_blink < _max_examples else _max_examples
@@ -216,6 +220,8 @@ if __name__=="__main__":
 
                         # save annotation
                         _ann = {
+                            "pid": pid,
+                            "range": f"{random_start}-{random_end}",
                             "eyelids_dist": y_eyelids_noblink.tolist(), 
                             "std_r": y_std_r_noblink.tolist(), 
                             "std_g": y_std_g_noblink.tolist(), 
@@ -224,7 +230,7 @@ if __name__=="__main__":
                             "blink_length": 0,
                             "start": 0,
                             "end": 0}
-                        annotations.append(_ann)
+                        annotations_0.append(_ann)
 
                         # plots
                         if args.generate_plots:
@@ -278,6 +284,8 @@ if __name__=="__main__":
 
             # save annotation
             _ann = {
+                "pid": pid,
+                "range": f"{_blink.start}-{_blink.stop}",
                 "eyelids_dist": y_eyelids[15:-15].tolist(), 
                 "std_r": y_std_r[15:-15].tolist(), 
                 "std_g": y_std_g[15:-15].tolist(), 
@@ -286,7 +294,7 @@ if __name__=="__main__":
                 "blink_length": int(blink_length),
                 "start": int(extended_blink_interval.start-15),
                 "end": int(extended_blink_interval.stop-15)}
-            annotations.append(_ann)
+            annotations_1.append(_ann)
 
 
             # # # # # #
@@ -300,6 +308,8 @@ if __name__=="__main__":
             extended_blink_interval = get_intervals(blink_shifted.tolist(), val=1)[0]
             # save annotation
             _ann = {
+                "pid": pid,
+                "range": f"{_blink.start}-{_blink.stop}",
                 "eyelids_dist": y_shifted_eyelids[15:-15].tolist(), 
                 "std_r": y_shifted_std_r[15:-15].tolist(), 
                 "std_g": y_shifted_std_g[15:-15].tolist(), 
@@ -308,7 +318,7 @@ if __name__=="__main__":
                 "blink_length": int(blink_length),
                 "start": int(extended_blink_interval.start-15),
                 "end": int(extended_blink_interval.stop-15)}
-            annotations.append(_ann)
+            annotations_1.append(_ann)
 
             # # # # # # #
             # Upsampled #
@@ -324,6 +334,8 @@ if __name__=="__main__":
             max_left_shift, max_right_shift = 15-floor(half_width)-2, 15- ceil(half_width)-2
             # save annotation
             _ann = {
+                "pid": pid,
+                "range": f"{_blink.start}-{_blink.stop}",
                 "eyelids_dist": y_extended_eyelids[15:-15].tolist(), 
                 "std_r": y_extended_std_r[15:-15].tolist(), 
                 "std_g": y_extended_std_g[15:-15].tolist(), 
@@ -332,7 +344,7 @@ if __name__=="__main__":
                 "blink_length": int(_num_extended),
                 "start": int(extended_blink_interval.start-15),
                 "end": int(extended_blink_interval.stop-15)}
-            annotations.append(_ann)
+            annotations_1.append(_ann)
 
             # # # # # # # # # # #
             # Upsampled Shifted #
@@ -346,6 +358,8 @@ if __name__=="__main__":
             extended_blink_interval = get_intervals(blink_extended_shifted.tolist(), val=1)[0]
             # save annotation
             _ann = {
+                "pid": pid,
+                "range": f"{_blink.start}-{_blink.stop}",
                 "eyelids_dist": y_extended_shifted_eyelids[15:-15].tolist(), 
                 "std_r": y_extended_shifted_std_r[15:-15].tolist(), 
                 "std_g": y_extended_shifted_std_g[15:-15].tolist(), 
@@ -354,7 +368,7 @@ if __name__=="__main__":
                 "blink_length": int(_num_extended),
                 "start": int(extended_blink_interval.start-15),
                 "end": int(extended_blink_interval.stop-15)}
-            annotations.append(_ann)
+            annotations_1.append(_ann)
 
             # # # # # # # #
             # Downsampled #
@@ -370,6 +384,8 @@ if __name__=="__main__":
             max_left_shift, max_right_shift = 15-floor(half_width)-2, 15- ceil(half_width)-2
             # save annotation
             _ann = {
+                "pid": pid,
+                "range": f"{_blink.start}-{_blink.stop}",
                 "eyelids_dist": y_downsampled_eyelids[15:-15].tolist(), 
                 "std_r": y_downsampled_std_r[15:-15].tolist(), 
                 "std_g": y_downsampled_std_g[15:-15].tolist(), 
@@ -378,7 +394,7 @@ if __name__=="__main__":
                 "blink_length": int(_num_shrinked),
                 "start": int(downsampled_blink_interval.start-15),
                 "end": int(downsampled_blink_interval.stop-15)}
-            annotations.append(_ann)
+            annotations_1.append(_ann)
 
             # # # # # # # # # # # #
             # Downsampled Shifted #
@@ -392,6 +408,8 @@ if __name__=="__main__":
             downsampled_blink_interval = get_intervals(blink_downsampled_shifted.tolist(), val=1)[0]
             # save annotation
             _ann = {
+                "pid": pid,
+                "range": f"{_blink.start}-{_blink.stop}",
                 "eyelids_dist": y_downsampled_shifted_eyelids[15:-15].tolist(), 
                 "std_r": y_downsampled_shifted_std_r[15:-15].tolist(), 
                 "std_g": y_downsampled_shifted_std_g[15:-15].tolist(), 
@@ -400,7 +418,7 @@ if __name__=="__main__":
                 "blink_length": int(_num_shrinked),
                 "start": int(downsampled_blink_interval.start-15),
                 "end": int(downsampled_blink_interval.stop-15)}
-            annotations.append(_ann)
+            annotations_1.append(_ann)
 
             # plots
             if args.generate_plots:
@@ -465,6 +483,16 @@ if __name__=="__main__":
                 plt.close(fig)
     
 
+    
+    if args.equal:
+        _max_num = min(len(annotations_0), len(annotations_1))
+        equal_annotation_0 = random.sample(annotations_0, _max_num)
+        equal_annotation_1 = random.sample(annotations_1, _max_num)
+    else:
+        equal_annotation_0 = annotations_0
+        equal_annotation_1 = annotations_1
+
+    annotations = equal_annotation_0 + equal_annotation_1
     # save annotations in a file
     annotations_folder_path = os.path.join(annotations_folder, f"annotations-{args.suffix}.json")
     with open(annotations_folder_path, "w") as f:
@@ -473,8 +501,8 @@ if __name__=="__main__":
     all_blinks *= 6
     # save meta
     args_dict = vars(args)
-    args_dict['all_blinks'] = int(all_blinks)
-    args_dict['all_no_blinks'] = int(all_no_blinks)
+    args_dict['all_blinks'] = len(equal_annotation_1)
+    args_dict['all_no_blinks'] = len(equal_annotation_0)
     args_dict['shortest_blink'] = int(shortest_blink)
     args_dict['longest_blink'] = int(longest_blink)
 
@@ -482,8 +510,8 @@ if __name__=="__main__":
         json.dump(args_dict, f)
 
     # Satatistics
-    print(f"All blinks: {all_blinks}")
-    print(f"ALL no blinks: {all_no_blinks}")
+    print(f"All blinks: {args_dict['all_blinks']}")
+    print(f"ALL no blinks: {args_dict['all_no_blinks']}")
     print(f"shortest blink: {shortest_blink}")
     print(f"longest blink: {longest_blink}")
 
