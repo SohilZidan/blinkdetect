@@ -72,7 +72,7 @@ class BlinkDataset1C(BlinkDataSet):
 
 
 
-class BlinkDataset2C(Dataset):
+class BlinkDataset2C(BlinkDataSet):
     
   def __init__(self, annotation_path, transform=False):
     super(BlinkDataset2C, self).__init__(annotation_path, transform)
