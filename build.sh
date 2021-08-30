@@ -5,8 +5,8 @@
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
-cd third-party/ddfa
+cd "${SCRIPT_DIR}/third-party/ddfa"
 
 sh ./build.sh
 
-cd SCRIPT_DIR
+cd $SCRIPT_DIR
