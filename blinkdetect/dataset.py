@@ -25,7 +25,10 @@ class BlinkDataset4C(BlinkDataSet):
 
   def __getitem__(self, idx):
     # 
-    _signals = self.tsfrm(self.annotations[idx])
+    sample = self.annotations[idx]
+    _pid=sample['pid']
+    _rng=sample['range']
+    _signals = self.tsfrm(sample)
     _input1 = _signals['eyelids_dist']
     _input2 = _signals['std_r']
     _input3 = _signals['std_g']
@@ -39,7 +42,7 @@ class BlinkDataset4C(BlinkDataSet):
     else:
       duration = torch.tensor([_signals['blink_length']], dtype=torch.float32).log_()/3.1355
     # 
-    return features, label, duration # 3.1355 is the max of log(duration)
+    return features, label, duration, _pid, _rng # 3.1355 is the max of log(duration)
 
 
 
@@ -49,8 +52,12 @@ class BlinkDataset1C(BlinkDataSet):
     super(BlinkDataset1C, self).__init__(annotation_path, transform)
 
   def __getitem__(self, idx):
+        
     # 
-    _signals = self.tsfrm(self.annotations[idx])
+    sample = self.annotations[idx]
+    _pid=sample['pid']
+    _rng=sample['range']
+    _signals = self.tsfrm(sample)
     _input1 = _signals['eyelids_dist']
     # 
     features = torch.stack([_input1], dim=0)
@@ -60,7 +67,7 @@ class BlinkDataset1C(BlinkDataSet):
       duration = torch.tensor([_signals['blink_length']], dtype=torch.float32)
     else:
       duration = torch.tensor([_signals['blink_length']], dtype=torch.float32).log_()/3.1355
-    return features, label, duration # 3.1355 is the max of log(duration)
+    return features, label, duration, _pid, _rng # 3.1355 is the max of log(duration)
 
 
 
@@ -72,7 +79,10 @@ class BlinkDataset2C(Dataset):
 
   def __getitem__(self, idx):
     # 
-    _signals = self.tsfrm(self.annotations[idx])
+    sample = self.annotations[idx]
+    _pid=sample['pid']
+    _rng=sample['range']
+    _signals = self.tsfrm(sample)
     _input1 = _signals['eyelids_dist'] if isinstance( _signals['eyelids_dist'], torch.Tensor) else torch.tensor(_signals['eyelids_dist'])
     _input2 = _signals['std_r']
     _input3 = _signals['std_g']
@@ -86,7 +96,7 @@ class BlinkDataset2C(Dataset):
       duration = torch.tensor([_signals['blink_length']], dtype=torch.float32)
     else:
       duration = torch.tensor([_signals['blink_length']], dtype=torch.float32).log_()/3.1355
-    return features, label, duration # 3.1355 is the max of log(duration)
+    return features, label, duration, _pid, _rng # 3.1355 is the max of log(duration)
 
 
 
