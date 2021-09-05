@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 # coding: utf-8
 
-from genericpath import exists
 import warnings
 warnings.filterwarnings("ignore")
 
 import os
 import json
 import shutil
-import glob
 from math import ceil, floor
 import argparse
 import pickle
@@ -29,6 +27,8 @@ from blinkdetect.preprocessing import resample_noblink, upsample_blink, downsamp
 
 import matplotlib.pyplot as plt
 
+from blinkdetect.common import read_annotations_tag
+
 
 def check_positive(value):
     ivalue = int(value)
@@ -40,6 +40,7 @@ if __name__=="__main__":
     
     parser = argparse.ArgumentParser()
     parser.add_argument("--output_folder", default="")
+    parser.add_argument('--dataset', required=True, choices=["BlinkingValidationSetVideos", "eyeblink8", "talkingFace", "zju", "RN"])
     parser.add_argument("--generate_plots", action="store_true")
     parser.add_argument("--yaw_range", type=int, default=180)
     parser.add_argument("--pitch_range", type=int, default=180)
@@ -53,7 +54,6 @@ if __name__=="__main__":
     
     print(vars(args))
 
-
     # min_std_r=0.0
     # max_std_r= 70.57724795565552
     # min_std_g= 0.0
@@ -63,21 +63,21 @@ if __name__=="__main__":
     # min_eyelids= 0
     # max_eyelids= 10.102511040619552
 
-    
     random.seed(192020)
 
     # OUTPUT
-    dataset = os.path.join(os.path.dirname(__file__), "..", "dataset")
+    dataset_root = os.path.join(os.path.dirname(__file__), "..", "dataset")
+    dataset = os.path.join(dataset_root, args.dataset)
     if args.output_folder == "":
-        annotations_folder = os.path.join(dataset, "augmented_signals")
+        annotations_folder = os.path.join(dataset_root, "augmented_signals")
         args.output_folder = annotations_folder
     else:
         annotations_folder = args.output_folder
     os.makedirs(annotations_folder, exist_ok=True)
     # 
     _version_folder = os.path.join(annotations_folder, args.suffix)
-    meta_file = os.path.join(_version_folder, "meta.json")
-    output_folder = os.path.join(_version_folder ,"plots")
+    meta_file = os.path.join(_version_folder, args.dataset, "meta.json")
+    output_folder = os.path.join(_version_folder , args.dataset,"plots")
     # 
     if os.path.exists(_version_folder):
         shutil.rmtree(_version_folder)
@@ -86,7 +86,6 @@ if __name__=="__main__":
     #     shutil.rmtree(output_folder)
     if args.generate_plots:
         os.makedirs(output_folder)
-
 
     # 
     all_blinks = 0
@@ -110,14 +109,24 @@ if __name__=="__main__":
     minall_lids = 10
     maxall_lids = 0
         
-    # PIDS = ["35", "37", "38", "40", "42", "47"]
-    all_files = glob.glob(f'{os.path.join(dataset, "BlinkingValidationSetVideos")}/*')
-    PIDS = [os.path.basename(_item) for _item in all_files if os.path.isdir(_item)]
-    for pid in tqdm.tqdm(PIDS, total=len(PIDS), desc="participants"):
+    #
+    # video paths
+    annds_paths = []
+    for root,dirs, files in os.walk(dataset):
+        for dir in files:
+            name, ext = os.path.splitext(dir)
+            if ext in [".tag"]:
+                annds_paths.append(os.path.join(root,dir))
+    #
+    #
+
+    for anns_path in tqdm.tqdm(annds_paths, total=len(annds_paths), desc="participants"):
+        video_name = os.path.dirname(anns_path)
+        video_name = os.path.relpath(video_name, dataset)
         # 
         # read data
         # 
-        signals_path = os.path.join(dataset,"tracked_faces", f"{pid}", "signals")
+        signals_path = os.path.join(dataset_root,"tracked_faces", args.dataset, video_name, "signals")
         std_path = os.path.join(signals_path, "stds.pkl")
         eyelids_path = os.path.join(signals_path, "eyelids_dists.pkl")
         faces_not_found_path = os.path.join(signals_path, "face_not_found.pkl")
@@ -157,14 +166,14 @@ if __name__=="__main__":
         # print(f"std_b: min {min(std_b)}, max {max(std_b)}")
         # print(f"eyelids: min {min(eyelids_dist)}, max {max(eyelids_dist)}")
         # 
-        blinking_anns = get_blinking_annotation(pid)
+        if args.dataset=="BlinkingValidationSetVideos":
+            blinking_anns = get_blinking_annotation(video_name)
+        else:
+            blinking_anns = read_annotations_tag(anns_path)
+
         face_found_anns = get_intervals(faces_not_found, val=0)
         yaw_preds = get_intervals_between(yaw_angles, val=args.yaw_range)
         pitch_preds = get_intervals_between(pitch_angles, val=args.pitch_range)
-        
-
-        # print(f"{len(blinking_anns)} blinks for participant {pid}")
-        # all_blinks += len(blinking_anns)
         
 
         #
