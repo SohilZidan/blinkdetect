@@ -22,14 +22,14 @@ if [ -z "$1" ]; then
     echo "dataset name is not provided"
     exit 1 
 fi
-echo "$1"
+# echo "$1"
 
 if [ ! -d "$DATASETPATH" ]; then
     echo "folder $DATASETPATH does not exist"
     exit 1
 fi
 
-echo "$DATASETPATH"
+# echo "$DATASETPATH"
 
 
 
@@ -52,7 +52,7 @@ for vid_path in ${VIDS[@]}; do
 
     # 
     video_frames_folder="${video_folder}/frames"
-    echo $video_frames_folder
+    # echo $video_frames_folder
 
     # create frames folder
 	rm -rf $video_frames_folder
