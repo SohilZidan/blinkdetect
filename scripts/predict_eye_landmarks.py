@@ -53,7 +53,7 @@ eye_indices = {"left":left_eye_indices, "right":right_eye_indices}
 
 def parser():
     _parser = argparse.ArgumentParser()
-    # _parser.add_argument('-pid', '--participant_id', required=True)
+    _parser.add_argument('--dataset', required=True, choices=["BlinkingValidationSetVideos", "eyeblink8", "talkingFace", "zju", "RN"])
     _parser.add_argument('-rng', '--range', type=int, default=[0,-1], nargs=2)
     _parser.add_argument('--batch', type=int, default=32, help='number of frames to be saved as a batch')
     _parser.add_argument('--resume', action='store_true', help='if true existed frames of an existed participant will not be replaced')
@@ -148,7 +148,6 @@ def color_analysis(eye_region, eye_corners, pupil_center, eye):
         _mean.append(np.mean(zi))
 
     return line_points, _std, _mean, _eyelids_dist
-
 
 def saveEyeChange(eye_region, color_value, file_name, line_points, line_type: str="straight"):
     _std = np.std(color_value)
@@ -306,32 +305,46 @@ def predict_eye_region(images_paths: list, facesInfo: pd.DataFrame, facemeshnet,
 
 
 if __name__=='__main__':
+    # 
     args = parser()
-    # participant_id = args.participant_id
     start, end = args.range
     resume = args.resume
     _save_faces = args.save_faces
+    dataset = os.path.join(dataset_root, args.dataset)
 
-    # 
-    all_files = glob.glob(f'{os.path.join(dataset_root, "BlinkingValidationSetVideos")}/*')
-    videos_folders = [_item for _item in all_files if os.path.isdir(_item)]
-    # 
-    for video_folder in videos_folders:
-        video_name = os.path.basename(video_folder)
-        frames_path=os.path.join(video_folder, "frames") 
-
-        # Input
-        input_path = os.path.join(dataset_root, 'tracked_faces', f'{video_name}')
+    #
+    # video paths
+    videos_paths = []
+    for root,dirs, files in os.walk(dataset):
+        for dir in files:
+            name, ext = os.path.splitext(dir)
+            if ext in [".avi", ".mov", ".wmv", ".mp4"]:
+                videos_paths.append(os.path.join(root,dir))
+    #
+    #
+    for video_path in videos_paths:
+        # input 
+        video_name = os.path.dirname(video_path)
+        video_name = os.path.relpath(video_name, dataset)
+        frames_path=os.path.join(os.path.dirname(video_path), "frames")
+        if not os.path.exists(frames_path):
+            continue
+        #
+        input_path = os.path.join(dataset_root, 'tracked_faces', args.dataset , video_name)
         input_path_file_hdf5 = os.path.join(input_path, "faceinfo.hdf5")
 
         # Output
-        output_path = os.path.join(dataset_root, "eye_landmarks", f"{video_name}")
+        output_path = os.path.join(dataset_root, "eye_landmarks", args.dataset , video_name)
         output_file_path_csv = os.path.join(output_path, f"eyeinfo.csv")
         output_file_path_hdf5 = os.path.join(output_path, f"eyeinfo.hdf5")
 
         # checking
-        assert os.path.exists(frames_path), f"frames folder {frames_path} not found"
-        assert os.path.exists(input_path_file_hdf5), f"faces info file {input_path_file_hdf5} not found"
+        if not os.path.exists(frames_path):
+            print(f"frames folder {frames_path} not found")
+            continue
+        if os.path.exists(input_path_file_hdf5):
+            print(f"faces info file {input_path_file_hdf5} not found")
+            continue
     
         # input
         with pd.HDFStore(input_path_file_hdf5) as store:

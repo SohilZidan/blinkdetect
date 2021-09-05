@@ -95,15 +95,14 @@ def generate_mean_std_plot(img_path, stds, means, eyelids_dists, yaws, faces_not
     plt.savefig(out_path, dpi=300, bbox_inches='tight')
     plt.close(fig)
 
-
 def parser():
     _parser = argparse.ArgumentParser()
+    _parser.add_argument('--dataset', required=True, choices=["BlinkingValidationSetVideos", "eyeblink8", "talkingFace", "zju", "RN"])
     _parser.add_argument('-rng', '--range', type=int, default=30)
     _parser.add_argument('--generate_plots', action='store_true', help='')
     _parser.add_argument('--select_eye', type=str, choices=['right', 'left', 'best'], default='best')
 
     return _parser.parse_args()
-
 
 def find_max_list(ls: list):
     new_ls = [[],[],[]]
@@ -220,20 +219,30 @@ if __name__=="__main__":
     generate_plots = args.generate_plots
     selected_eye = args.select_eye
     _rng = args.range
+    dataset = os.path.join(dataset_root, args.dataset)
 
-    # 
-    all_files = glob.glob(f'{os.path.join(dataset_root, "BlinkingValidationSetVideos")}/*')
-    videos_folders = [_item for _item in all_files if os.path.isdir(_item)]
-    # 
-    for video_folder in videos_folders:
-        video_name = os.path.basename(video_folder)
+    #
+    # video paths
+    videos_paths = []
+    for root,dirs, files in os.walk(dataset):
+        for dir in files:
+            name, ext = os.path.splitext(dir)
+            if ext in [".avi", ".mov", ".wmv", ".mp4"]:
+                videos_paths.append(os.path.join(root,dir))
+    #
+    #
+    for video_path in videos_paths:
+        video_name = os.path.dirname(video_path)
+        video_name = os.path.relpath(video_name, dataset)
         # input
-        input_file_path_hdf5 = os.path.join(dataset_root,"eye_landmarks", f"{video_name}","eyeinfo.hdf5")
-        assert os.path.exists(input_file_path_hdf5), f"{input_file_path_hdf5} not existed"
+        input_file_path_hdf5 = os.path.join(dataset_root,"eye_landmarks", args.dataset, video_name,"eyeinfo.hdf5")
+        if not os.path.exists(input_file_path_hdf5):
+            print(f"{input_file_path_hdf5} not existed")
+            continue
     
         # output
-        output_path = os.path.join(dataset_root,"tracked_faces", f"{video_name}", "timeseries_plots")
-        output_results_path = os.path.join(dataset_root,"tracked_faces", f"{video_name}", "signals")
+        output_path = os.path.join(dataset_root,"tracked_faces", args.dataset, video_name, "timeseries_plots")
+        output_results_path = os.path.join(dataset_root,"tracked_faces", args.dataset, video_name, "signals")
         # results files paths
         means_file_path = os.path.join(output_results_path, "means.pkl")
         stds_file_path = os.path.join(output_results_path, "stds.pkl")      

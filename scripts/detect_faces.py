@@ -78,29 +78,19 @@ if __name__=="__main__":
     dataset = os.path.join(dataset_root, args.dataset)
 
     #
-    # all_files = glob.glob(f'{os.path.join(dataset_root, args.dataset)}/*')
-    # videos_folders = [_item for _item in all_files if os.path.isdir(_item)]
-
-    ################
+    # video paths
     videos_paths = []
     for root,dirs, files in os.walk(dataset):
         for dir in files:
             name, ext = os.path.splitext(dir)
             if ext in [".avi", ".mov", ".wmv", ".mp4"]:
                 videos_paths.append(os.path.join(root,dir))
-    
-    # print(dataset)
-    
-
-    #################3
-    # exit()
+    #
     # 
     for video_path in videos_paths:
         # input
         video_name = os.path.dirname(video_path)
         video_name = os.path.relpath(video_name, dataset)
-        print(video_name)
-        # 
         frames_root=os.path.join(os.path.dirname(video_path), "frames")
         if not os.path.exists(frames_root):
             continue
@@ -109,10 +99,7 @@ if __name__=="__main__":
         faceinfo_file_path_pkl = os.path.join(faces_root, "faceinfo.pkl")
 
         os.makedirs(faces_root,exist_ok=True)
-        # print("frames:",frames_root)
-        # print("faces:",faces_root)
-        # print("-------------")
-        # continue
+        
         # when resume is set, existed participant_id,frame_num indices will not be processed
         _except_frames = []
         _all_detections = {}
