@@ -735,7 +735,7 @@ if __name__=="__main__":
     method = args.method
     _limit=args.limit
     _closest = args.closest
-    dataset = args.dataset
+    dataset = os.path.join(dataset_root, args.dataset)
 
     # videos paths
     videos_paths = []
@@ -792,8 +792,6 @@ if __name__=="__main__":
 
                     if video_name in _data_df.index:
                         _except_frames.extend(list(_data_df.loc[video_name].index))
-    
-
     
         # load images
         _images = sorted(glob.glob(f"{frames_root}/*.png")) 
