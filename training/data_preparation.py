@@ -229,7 +229,7 @@ if __name__=="__main__":
 
                         # save annotation
                         _ann = {
-                            "pid": pid,
+                            "pid": video_name,
                             "range": f"{random_start}-{random_end}",
                             "eyelids_dist": y_eyelids_noblink.tolist(), 
                             "std_r": y_std_r_noblink.tolist(), 
@@ -253,7 +253,7 @@ if __name__=="__main__":
                             plt.legend()
                             plt.tight_layout()
                             
-                            img_output_path = os.path.join(output_folder, f"{pid}_[{random_start}-{random_end}]_0.png")
+                            img_output_path = os.path.join(output_folder, f"{video_name.replace('/','-')}_[{random_start}-{random_end}]_0.png")
                             plt.savefig(img_output_path, dpi=300, bbox_inches='tight')
                             plt.close(fig)
 
@@ -293,7 +293,7 @@ if __name__=="__main__":
 
             # save annotation
             _ann = {
-                "pid": pid,
+                "pid": video_name,
                 "range": f"{_blink.start}-{_blink.stop}",
                 "eyelids_dist": y_eyelids[15:-15].tolist(), 
                 "std_r": y_std_r[15:-15].tolist(), 
@@ -343,7 +343,7 @@ if __name__=="__main__":
             max_left_shift, max_right_shift = 15-floor(half_width)-2, 15- ceil(half_width)-2
             # save annotation
             _ann = {
-                "pid": pid,
+                "pid": video_name,
                 "range": f"{_blink.start}-{_blink.stop}",
                 "eyelids_dist": y_extended_eyelids[15:-15].tolist(), 
                 "std_r": y_extended_std_r[15:-15].tolist(), 
@@ -367,7 +367,7 @@ if __name__=="__main__":
             extended_blink_interval = get_intervals(blink_extended_shifted.tolist(), val=1)[0]
             # save annotation
             _ann = {
-                "pid": pid,
+                "pid": video_name,
                 "range": f"{_blink.start}-{_blink.stop}",
                 "eyelids_dist": y_extended_shifted_eyelids[15:-15].tolist(), 
                 "std_r": y_extended_shifted_std_r[15:-15].tolist(), 
@@ -393,7 +393,7 @@ if __name__=="__main__":
             max_left_shift, max_right_shift = 15-floor(half_width)-2, 15- ceil(half_width)-2
             # save annotation
             _ann = {
-                "pid": pid,
+                "pid": video_name,
                 "range": f"{_blink.start}-{_blink.stop}",
                 "eyelids_dist": y_downsampled_eyelids[15:-15].tolist(), 
                 "std_r": y_downsampled_std_r[15:-15].tolist(), 
@@ -417,7 +417,7 @@ if __name__=="__main__":
             downsampled_blink_interval = get_intervals(blink_downsampled_shifted.tolist(), val=1)[0]
             # save annotation
             _ann = {
-                "pid": pid,
+                "pid": video_name,
                 "range": f"{_blink.start}-{_blink.stop}",
                 "eyelids_dist": y_downsampled_shifted_eyelids[15:-15].tolist(), 
                 "std_r": y_downsampled_shifted_std_r[15:-15].tolist(), 
@@ -487,7 +487,7 @@ if __name__=="__main__":
                     _once_legend = False
 
                 plt.tight_layout()
-                img_output_path = os.path.join(output_folder, f"{pid}_[{_blink.start}-{_blink.stop}]_1.png")
+                img_output_path = os.path.join(output_folder, f"{video_name.replace('/','-')}_[{_blink.start}-{_blink.stop}]_1.png")
                 plt.savefig(img_output_path, dpi=300, bbox_inches='tight')
                 plt.close(fig)
     
