@@ -4,10 +4,8 @@ import glob
 from math import ceil
 import pickle
 import tqdm
-# from deepface import DeepFace
 import shutil
 from deepface.DeepFace import build_model, represent
-# from retinaface.commons import postprocess
 import numpy as np
 import pandas as pd
 import cv2
@@ -19,6 +17,9 @@ lib_dir = os.path.join(os.path.dirname(__file__), "..")
 sys.path.append(lib_dir)
 # 
 from blinkdetect.tracking.klt_tracker import KLT
+# 
+from scipy.spatial.distance import directed_hausdorff
+import scipy.optimize
 
 
 dataset_root = os.path.join(os.path.dirname(__file__), "..", "dataset")
@@ -37,13 +38,8 @@ def parser():
 
     return _parser.parse_args()
 
-
-
-
-
 model_name = 'VGG-Face'
 model = build_model(model_name)
-
 
 def verify(img1_path, img2_path = '', model_name = 'VGG-Face', distance_metric = 'cosine', model = None, enforce_detection = True, detector_backend = 'opencv', align = True, prog_bar = True):
 
@@ -173,8 +169,6 @@ def verify(img1_path, img2_path = '', model_name = 'VGG-Face', distance_metric =
 
 		return resp_obj
 
-
-
 # Frame: N
 # track the positions of the faces in frame N-1 using KLT: tracked_faces
 # for each tracked_face in tracked_faces:
@@ -203,14 +197,12 @@ def verify(img1_path, img2_path = '', model_name = 'VGG-Face', distance_metric =
 # Another idea:
     # form an energy function
 
-from scipy.spatial.distance import directed_hausdorff
 
 def symmetric_hausdorff(A: np.ndarray, B: np.ndarray):
     _A = A.reshape((-1,2))
     _B = B.reshape((-1,2))
     return max(directed_hausdorff(_A, _B)[0], directed_hausdorff(_B, _A)[0])
 
-import scipy.optimize
 def closest_pairs(A: np.ndarray, B: np.ndarray):
     """[summary]
     https://stackoverflow.com/questions/65373827/fastest-way-to-find-the-nearest-pairs-between-two-numpy-arrays-without-duplicate
@@ -225,7 +217,6 @@ def closest_pairs(A: np.ndarray, B: np.ndarray):
     cost = np.linalg.norm(B.reshape(-1,2)[:,np.newaxis,:] - A.reshape(-1,2), axis=2)
     _, indexes = scipy.optimize.linear_sum_assignment(cost)
     return A[indexes]
-
 
 def track_faces_v1(img_path, dets, prev_faces={},frame_number="", closest = False):
     
@@ -723,8 +714,6 @@ def track_faces_batch(
         
     return _detections, _all_faces
 
-
-
 if __name__=="__main__":
 
 
@@ -750,18 +739,18 @@ if __name__=="__main__":
         # input
         video_name = os.path.dirname(video_path)
         video_name = os.path.relpath(video_name, dataset)
-        frames_root=os.path.join(os.path.dirname(video_path), "frames")
+        frames_root = os.path.normpath(os.path.join(os.path.dirname(video_path), "frames"))
         if not os.path.exists(frames_root):
             continue
-        faces_detection_file_path = os.path.join(dataset_root,"faces", args.dataset, video_name, 'faceinfo_v2.pkl')
+        faces_detection_file_path = os.path.normpath(os.path.join(dataset_root,"faces", args.dataset, video_name, 'faceinfo_v2.pkl'))
         if not os.path.exists(faces_detection_file_path):
             continue
 
         # output
         tracked_faces_root = os.path.join(dataset_root,"tracked_faces", args.dataset, video_name)
-        faceinfo_file_path_csv = os.path.join(tracked_faces_root, "faceinfo.csv")
-        faceinfo_file_path_hdf5 = os.path.join(tracked_faces_root, "faceinfo.hdf5")
-        last_faces_info = os.path.join(tracked_faces_root, 'last_faces')
+        faceinfo_file_path_csv = os.path.normpath(os.path.join(tracked_faces_root, "faceinfo.csv"))
+        faceinfo_file_path_hdf5 = os.path.normpath(os.path.join(tracked_faces_root, "faceinfo.hdf5"))
+        last_faces_info = os.path.normpath(os.path.join(tracked_faces_root, 'last_faces'))
 
         # emptying the folder in case of not resuming
         if not resume and os.path.exists(tracked_faces_root):

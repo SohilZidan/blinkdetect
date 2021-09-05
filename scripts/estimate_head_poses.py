@@ -36,8 +36,8 @@ def main(args):
     output_file_name = args.output_file
 
     dataset_root = os.path.join(os.path.dirname(__file__), "..", "dataset")
-    dataset = os.path.join(dataset_root, args.dataset)
-    
+    dataset = os.path.normpath(os.path.join(dataset_root, args.dataset))
+
     # videos paths
     videos_paths = []
     for root,dirs, files in os.walk(dataset):
@@ -55,10 +55,10 @@ def main(args):
         if not os.path.exists(frames_root):
             continue
         # 
-        faces_detection_file_path = os.path.join(dataset_root, "faces", args.dataset, video_name, 'faceinfo.pkl')
+        faces_detection_file_path = os.path.normpath(os.path.join(dataset_root, "faces", args.dataset, video_name, 'faceinfo.pkl'))
         
         # output
-        faces_detection_with_pose_file_path = os.path.join(dataset_root,"faces", args.dataset, video_name, output_file_name)
+        faces_detection_with_pose_file_path = os.path.normpath(os.path.join(dataset_root,"faces", args.dataset, video_name, output_file_name))
 
         if not os.path.exists(faces_detection_file_path):
             print(f"faces detection file {faces_detection_file_path} not found")

@@ -75,7 +75,7 @@ if __name__=="__main__":
     args = parser()
     start, end = args.range
     resume = args.resume
-    dataset = os.path.join(dataset_root, args.dataset)
+    dataset = os.path.normpath(os.path.join(dataset_root, args.dataset))
 
     #
     # video paths
@@ -91,12 +91,12 @@ if __name__=="__main__":
         # input
         video_name = os.path.dirname(video_path)
         video_name = os.path.relpath(video_name, dataset)
-        frames_root=os.path.join(os.path.dirname(video_path), "frames")
+        frames_root=os.path.normpath(os.path.join(os.path.dirname(video_path), "frames"))
         if not os.path.exists(frames_root):
             continue
         # output
-        faces_root = os.path.join(dataset_root,"faces", args.dataset, video_name)
-        faceinfo_file_path_pkl = os.path.join(faces_root, "faceinfo.pkl")
+        faces_root = os.path.normpath(os.path.join(dataset_root,"faces", args.dataset, video_name))
+        faceinfo_file_path_pkl = os.path.normpath(os.path.join(faces_root, "faceinfo.pkl"))
 
         os.makedirs(faces_root,exist_ok=True)
         

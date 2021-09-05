@@ -331,12 +331,12 @@ if __name__=='__main__':
             continue
         #
         input_path = os.path.join(dataset_root, 'tracked_faces', args.dataset , video_name)
-        input_path_file_hdf5 = os.path.join(input_path, "faceinfo.hdf5")
+        input_path_file_hdf5 = os.path.normpath(os.path.join(input_path, "faceinfo.hdf5"))
 
         # Output
         output_path = os.path.join(dataset_root, "eye_landmarks", args.dataset , video_name)
-        output_file_path_csv = os.path.join(output_path, f"eyeinfo.csv")
-        output_file_path_hdf5 = os.path.join(output_path, f"eyeinfo.hdf5")
+        output_file_path_csv = os.path.normpath(os.path.join(output_path, f"eyeinfo.csv"))
+        output_file_path_hdf5 = os.path.normpath(os.path.join(output_path, f"eyeinfo.hdf5"))
 
         # checking
         if not os.path.exists(frames_path):
