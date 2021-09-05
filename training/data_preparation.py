@@ -317,7 +317,7 @@ if __name__=="__main__":
             extended_blink_interval = get_intervals(blink_shifted.tolist(), val=1)[0]
             # save annotation
             _ann = {
-                "pid": pid,
+                "pid": video_name,
                 "range": f"{_blink.start}-{_blink.stop}",
                 "eyelids_dist": y_shifted_eyelids[15:-15].tolist(), 
                 "std_r": y_shifted_std_r[15:-15].tolist(), 
