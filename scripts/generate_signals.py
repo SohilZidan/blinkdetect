@@ -2,7 +2,6 @@
 # coding: utf-8
 
 import os
-import glob
 import argparse
 import numpy as np
 import pandas as pd
@@ -231,7 +230,7 @@ if __name__=="__main__":
                 videos_paths.append(os.path.join(root,dir))
     #
     #
-    for video_path in videos_paths:
+    for video_path in tqdm.tqdm(videos_paths, total=len(videos_paths), desc="video"):
         video_name = os.path.dirname(video_path)
         video_name = os.path.relpath(video_name, dataset)
         # input
@@ -332,7 +331,7 @@ if __name__=="__main__":
         _bboxes = []
         _faces_not_found = []
 
-        for idx, _frame in enumerate(ordered_frames):
+        for idx, _frame in tqdm.tqdm(enumerate(ordered_frames), total=len(ordered_frames), desc="frame"):
             _paths.append(_frames.loc[_frame]["img_path"])
             
             _bboxes.append(list(_frames.loc[_frame][['left', 'top', 'right', 'bottom']].astype(np.int32)))
