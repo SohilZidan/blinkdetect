@@ -10,6 +10,7 @@ dataset_root = os.path.join(os.path.dirname(__file__), "..", "dataset")
 
 def parser():
     _parser = argparse.ArgumentParser()
+    _parser.add_argument('--dataset', required=True, choices=["BlinkingValidationSetVideos", "eyeblink8", "talkingFace", "zju", "RN"])
     _parser.add_argument('-rng', '--range', type=int, default=[0,-1], nargs=2)
     _parser.add_argument('--batch', type=int, default=32, help='number of frames to be saved as a batch')
     _parser.add_argument('--resume', action='store_true', help='if true existed frames of an existed participant will not be replaced')
@@ -74,22 +75,44 @@ if __name__=="__main__":
     args = parser()
     start, end = args.range
     resume = args.resume
+    dataset = os.path.join(dataset_root, args.dataset)
 
     #
-    all_files = glob.glob(f'{os.path.join(dataset_root, "BlinkingValidationSetVideos")}/*')
-    videos_folders = [_item for _item in all_files if os.path.isdir(_item)]
+    # all_files = glob.glob(f'{os.path.join(dataset_root, args.dataset)}/*')
+    # videos_folders = [_item for _item in all_files if os.path.isdir(_item)]
 
+    ################
+    videos_paths = []
+    for root,dirs, files in os.walk(dataset):
+        for dir in files:
+            name, ext = os.path.splitext(dir)
+            if ext in [".avi", ".mov", ".wmv", ".mp4"]:
+                videos_paths.append(os.path.join(root,dir))
+    
+    # print(dataset)
+    
+
+    #################3
+    # exit()
     # 
-    for video_folder in videos_folders:
+    for video_path in videos_paths:
         # input
-        video_name = os.path.basename(video_folder)
-        frames_root=os.path.join(video_folder, "frames")
+        video_name = os.path.dirname(video_path)
+        video_name = os.path.relpath(video_name, dataset)
+        print(video_name)
+        # 
+        frames_root=os.path.join(os.path.dirname(video_path), "frames")
+        if not os.path.exists(frames_root):
+            continue
         # output
-        faces_root = os.path.join(dataset_root,"faces", video_name)
+        faces_root = os.path.join(dataset_root,"faces", args.dataset, video_name)
         faceinfo_file_path_pkl = os.path.join(faces_root, "faceinfo.pkl")
 
         os.makedirs(faces_root,exist_ok=True)
-
+        # print("frames:",frames_root)
+        # print("faces:",faces_root)
+        # print("-------------")
+        # continue
         # when resume is set, existed participant_id,frame_num indices will not be processed
         _except_frames = []
         _all_detections = {}
