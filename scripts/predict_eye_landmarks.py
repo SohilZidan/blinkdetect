@@ -24,6 +24,7 @@ from blinkdetect.models.irislandmarks import IrisLandmarks
 
 import matplotlib.pyplot as plt
 from scipy.spatial.distance import directed_hausdorff
+import scipy.ndimage
 from retinaface.commons import postprocess
 
 print("PyTorch version:", torch.__version__)
