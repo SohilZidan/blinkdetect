@@ -342,7 +342,7 @@ if __name__=='__main__':
         if not os.path.exists(frames_path):
             print(f"frames folder {frames_path} not found")
             continue
-        if os.path.exists(input_path_file_hdf5):
+        if not os.path.exists(input_path_file_hdf5):
             print(f"faces info file {input_path_file_hdf5} not found")
             continue
     

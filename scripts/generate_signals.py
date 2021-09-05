@@ -235,14 +235,14 @@ if __name__=="__main__":
         video_name = os.path.dirname(video_path)
         video_name = os.path.relpath(video_name, dataset)
         # input
-        input_file_path_hdf5 = os.path.join(dataset_root,"eye_landmarks", args.dataset, video_name,"eyeinfo.hdf5")
+        input_file_path_hdf5 = os.path.normpath(os.path.join(dataset_root,"eye_landmarks", args.dataset, video_name,"eyeinfo.hdf5"))
         if not os.path.exists(input_file_path_hdf5):
             print(f"{input_file_path_hdf5} not existed")
             continue
     
         # output
-        output_path = os.path.join(dataset_root,"tracked_faces", args.dataset, video_name, "timeseries_plots")
-        output_results_path = os.path.join(dataset_root,"tracked_faces", args.dataset, video_name, "signals")
+        output_path = os.path.normpath(os.path.join(dataset_root,"tracked_faces", args.dataset, video_name, "timeseries_plots"))
+        output_results_path = os.path.normpath(os.path.join(dataset_root,"tracked_faces", args.dataset, video_name, "signals"))
         # results files paths
         means_file_path = os.path.join(output_results_path, "means.pkl")
         stds_file_path = os.path.join(output_results_path, "stds.pkl")      
