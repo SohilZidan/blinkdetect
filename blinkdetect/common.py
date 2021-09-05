@@ -1,5 +1,6 @@
 import os
 import numpy as np
+from argusutil.annotation.annotation import AnnotationOfIntervals, Interval, Unit
 
 def flip_signal(y):
     _mean = np.mean(y)
