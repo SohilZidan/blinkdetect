@@ -75,9 +75,9 @@ if __name__=="__main__":
         annotations_folder = args.output_folder
     os.makedirs(annotations_folder, exist_ok=True)
     # 
-    _version_folder = os.path.join(annotations_folder, args.suffix)
-    meta_file = os.path.join(_version_folder, args.dataset, "meta.json")
-    output_folder = os.path.join(_version_folder , args.dataset,"plots")
+    _version_folder = os.path.join(annotations_folder, args.suffix, args.dataset)
+    meta_file = os.path.join(_version_folder, "meta.json")
+    output_folder = os.path.join(_version_folder, "plots")
     # 
     if os.path.exists(_version_folder):
         shutil.rmtree(_version_folder)
