@@ -36,19 +36,33 @@ def main(args):
     output_file_name = args.output_file
 
     dataset_root = os.path.join(os.path.dirname(__file__), "..", "dataset")
+    dataset = os.path.join(dataset_root, args.dataset)
+    
+    # videos paths
+    videos_paths = []
+    for root,dirs, files in os.walk(dataset):
+        for dir in files:
+            name, ext = os.path.splitext(dir)
+            if ext in [".avi", ".mov", ".wmv", ".mp4"]:
+                videos_paths.append(os.path.join(root,dir))
+    #
     # 
-    all_files = glob.glob(f'{os.path.join(dataset_root, "BlinkingValidationSetVideos")}/*')
-    videos_folders = [_item for _item in all_files if os.path.isdir(_item)]
-    # 
-    for video_folder in videos_folders:
+    for video_path in videos_paths:
         # input 
-        video_name = os.path.basename(video_folder)
-        frames_root=os.path.join(video_folder, "frames")
-        faces_detection_file_path = os.path.join(dataset_root,"faces", video_name, 'faceinfo.pkl')
+        video_name = os.path.dirname(video_path)
+        video_name = os.path.relpath(video_name, dataset)
+        frames_root=os.path.join(os.path.dirname(video_path), "frames")
+        if not os.path.exists(frames_root):
+            continue
+        # 
+        faces_detection_file_path = os.path.join(dataset_root, "faces", args.dataset, video_name, 'faceinfo.pkl')
+        
         # output
-        faces_detection_with_pose_file_path = os.path.join(dataset_root,"faces", video_name, output_file_name)
+        faces_detection_with_pose_file_path = os.path.join(dataset_root,"faces", args.dataset, video_name, output_file_name)
 
-        assert os.path.exists(faces_detection_file_path), f"faces detection file {faces_detection_file_path} not found"
+        if not os.path.exists(faces_detection_file_path):
+            print(f"faces detection file {faces_detection_file_path} not found")
+            continue
 
         #
         gpu_mode = args.mode == 'gpu'
@@ -117,7 +131,7 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='The demo of still image of 3DDFA_V2')
-    # parser.add_argument('-pid', '--participant_id', required=True)
+    parser.add_argument('--dataset', required=True, choices=["BlinkingValidationSetVideos", "eyeblink8", "talkingFace", "zju", "RN"])
     parser.add_argument('-rng', '--range', type=int, default=[0,-1], nargs=2)
     parser.add_argument('--batch', type=int, default=32, help='number of frames to be saved as a batch')
     parser.add_argument('--resume', action='store_true', help='if true existed frames of an existed participant will not be replaced')
