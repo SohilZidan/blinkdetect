@@ -1,6 +1,19 @@
 Bootstrap: library
 From: ubuntu:18.04
 
+# %setup
+#     eval $(ssh-agent)
+#     ssh-add ~/.ssh/id_rsa
+#     # git clone git@bitbucket.org:arguscognitive/argusutil.git
+#     # git checkout v0.4.1
+#     # python3 argusutil/python/setup.py install
+    
+# %files
+#     ./requirements.txt
+#     ~/.ssh/id_rsa.pub /home/.ssh/id_rsa.pub
+#     ~/.ssh/id_rsa /home/.ssh/id_rsa
+#     ~/.ssh/known_hosts /home/.ssh/known_hosts
+
 %post
     # These first few commands allow us to find the python3-pip package later
     # on.
@@ -21,7 +34,11 @@ From: ubuntu:18.04
         python3-pip \
         python3-distutils \
         python3-setuptools \
-        ffmpeg
+        ffmpeg \
+        git \
+        openssh-client
+    
+    # apt-get install git
     # Reduce the size of the image by deleting the package lists we downloaded,
     # which are useless now.
     rm -rf /var/lib/apt/lists/*
@@ -40,8 +57,8 @@ From: ubuntu:18.04
                 matplotlib==3.3.4 \
                 tables==3.6.1 \
                 deepface==0.0.63 \
-                Cython==0.29.24
-    #torch numpy matplotlib
+                Cython==0.29.24 \
+                paramiko==2.7.2 \
+                git+https://bitbucket.org/arguscognitive/argusutil.git@v0.4.1#subdirectory=python
 
-%files
-    ./requirements.txt
+    # python3 -m pip3 install git+https://git@bitbucket.org/arguscognitive/argusutil.git@v0.4.1#subdirectory=python
