@@ -169,7 +169,7 @@ if __name__=="__main__":
         if args.dataset=="BlinkingValidationSetVideos":
             blinking_anns = get_blinking_annotation(video_name)
         else:
-            blinking_anns = read_annotations_tag(anns_path)
+            closeness_list, blinking_anns = read_annotations_tag(anns_path)
 
         face_found_anns = get_intervals(faces_not_found, val=0)
         yaw_preds = get_intervals_between(yaw_angles, val=args.yaw_range)
