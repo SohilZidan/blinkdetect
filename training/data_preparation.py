@@ -331,7 +331,7 @@ if __name__=="__main__":
             annotations_1.append(_ann)
 
 
-            if args.eval:
+            if not args.eval:
                 # # # # # # #
                 # Upsampled #
                 # # # # # # #
@@ -454,7 +454,7 @@ if __name__=="__main__":
                 plt.plot(blink_shifted[15:-15])
                 # TODO:
                 #   - fix plot size
-                if args.eval:
+                if not args.eval:
                     # extended
                     plt.subplot(2,3, 2)
                     plt.title(f"extended {_num_extended}")
@@ -513,10 +513,10 @@ if __name__=="__main__":
     with open(annotations_folder_path, "w") as f:
         json.dump(annotations, f)
     
-    if args.eval:
-        all_blinks *= 2
-    else:
-        all_blinks *= 6
+    # if args.eval:
+    #     all_blinks *= 2
+    # else:
+    #     all_blinks *= 6
     # save meta
     args_dict = vars(args)
     args_dict['all_blinks'] = len(equal_annotation_1)
