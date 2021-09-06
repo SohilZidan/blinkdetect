@@ -509,7 +509,7 @@ if __name__=="__main__":
 
     annotations = equal_annotation_0 + equal_annotation_1
     # save annotations in a file
-    annotations_folder_path = os.path.join(annotations_folder, args.dataset, f"annotations-{args.suffix}.json")
+    annotations_folder_path = os.path.join(annotations_folder, f"annotations-{args.suffix}.json")
     with open(annotations_folder_path, "w") as f:
         json.dump(annotations, f)
     
