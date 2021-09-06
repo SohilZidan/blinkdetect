@@ -50,6 +50,7 @@ if __name__=="__main__":
     parser.add_argument("--suffix", default="-v0")
     parser.add_argument("--normalized", action="store_true")
     parser.add_argument("--equal", action="store_true", help="if set equal numbers of both classes ar generated")
+    parser.add_argument("--eval", action="store_true")
     args = parser.parse_args()
     
     print(vars(args))
@@ -72,10 +73,10 @@ if __name__=="__main__":
         annotations_folder = os.path.join(dataset_root, "augmented_signals")
         args.output_folder = annotations_folder
     else:
-        annotations_folder = args.output_folder
+        annotations_folder = os.path.join(args.output_folder, args.dataset)
     os.makedirs(annotations_folder, exist_ok=True)
     # 
-    _version_folder = os.path.join(annotations_folder, args.suffix, args.dataset)
+    _version_folder = os.path.join(annotations_folder, args.suffix)
     meta_file = os.path.join(_version_folder, "meta.json")
     output_folder = os.path.join(_version_folder, "plots")
     # 
@@ -329,105 +330,107 @@ if __name__=="__main__":
                 "end": int(extended_blink_interval.stop-15)}
             annotations_1.append(_ann)
 
-            # # # # # # #
-            # Upsampled #
-            # # # # # # #
-            y_extended_eyelids, blink_extended, _num_extended = upsample_blink(y_in=eyelids_dist, start=_blink.start, stop=_blink.stop, samples=None)
-            y_extended_std_r, _, _ = upsample_blink(y_in=std_r, start=_blink.start, stop=_blink.stop, samples=_num_extended)
-            y_extended_std_g, _, _ = upsample_blink(y_in=std_g, start=_blink.start, stop=_blink.stop, samples=_num_extended)
-            y_extended_std_b, _, _ = upsample_blink(y_in=std_b, start=_blink.start, stop=_blink.stop, samples=_num_extended)
-            # blink interval
-            extended_blink_interval = get_intervals(blink_extended.tolist(), val=1)[0]
-            # max_left_shift, max_right_shift = extended_blink_interval.start-2, 30-extended_blink_interval.stop-2
-            half_width = (extended_blink_interval.length+1)/2
-            max_left_shift, max_right_shift = 15-floor(half_width)-2, 15- ceil(half_width)-2
-            # save annotation
-            _ann = {
-                "pid": video_name,
-                "range": f"{_blink.start}-{_blink.stop}",
-                "eyelids_dist": y_extended_eyelids[15:-15].tolist(), 
-                "std_r": y_extended_std_r[15:-15].tolist(), 
-                "std_g": y_extended_std_g[15:-15].tolist(), 
-                "std_b": y_extended_std_b[15:-15].tolist(),
-                "is_blink": 1,
-                "blink_length": int(_num_extended),
-                "start": int(extended_blink_interval.start-15),
-                "end": int(extended_blink_interval.stop-15)}
-            annotations_1.append(_ann)
 
-            # # # # # # # # # # #
-            # Upsampled Shifted #
-            # # # # # # # # # # #
-            y_extended_shifted_eyelids, _steps_extended = shift(y_extended_eyelids, [-max_left_shift, max_right_shift])
-            y_extended_shifted_std_r, _ = shift(y_extended_std_r, _steps_extended)
-            y_extended_shifted_std_g, _ = shift(y_extended_std_g, _steps_extended)
-            y_extended_shifted_std_b, _ = shift(y_extended_std_b, _steps_extended)
-            blink_extended_shifted, _ = shift(blink_extended, _steps_extended)
-            # blink interval
-            extended_blink_interval = get_intervals(blink_extended_shifted.tolist(), val=1)[0]
-            # save annotation
-            _ann = {
-                "pid": video_name,
-                "range": f"{_blink.start}-{_blink.stop}",
-                "eyelids_dist": y_extended_shifted_eyelids[15:-15].tolist(), 
-                "std_r": y_extended_shifted_std_r[15:-15].tolist(), 
-                "std_g": y_extended_shifted_std_g[15:-15].tolist(), 
-                "std_b": y_extended_shifted_std_b[15:-15].tolist(),
-                "is_blink": 1,
-                "blink_length": int(_num_extended),
-                "start": int(extended_blink_interval.start-15),
-                "end": int(extended_blink_interval.stop-15)}
-            annotations_1.append(_ann)
+            if args.eval:
+                # # # # # # #
+                # Upsampled #
+                # # # # # # #
+                y_extended_eyelids, blink_extended, _num_extended = upsample_blink(y_in=eyelids_dist, start=_blink.start, stop=_blink.stop, samples=None)
+                y_extended_std_r, _, _ = upsample_blink(y_in=std_r, start=_blink.start, stop=_blink.stop, samples=_num_extended)
+                y_extended_std_g, _, _ = upsample_blink(y_in=std_g, start=_blink.start, stop=_blink.stop, samples=_num_extended)
+                y_extended_std_b, _, _ = upsample_blink(y_in=std_b, start=_blink.start, stop=_blink.stop, samples=_num_extended)
+                # blink interval
+                extended_blink_interval = get_intervals(blink_extended.tolist(), val=1)[0]
+                # max_left_shift, max_right_shift = extended_blink_interval.start-2, 30-extended_blink_interval.stop-2
+                half_width = (extended_blink_interval.length+1)/2
+                max_left_shift, max_right_shift = 15-floor(half_width)-2, 15- ceil(half_width)-2
+                # save annotation
+                _ann = {
+                    "pid": video_name,
+                    "range": f"{_blink.start}-{_blink.stop}",
+                    "eyelids_dist": y_extended_eyelids[15:-15].tolist(), 
+                    "std_r": y_extended_std_r[15:-15].tolist(), 
+                    "std_g": y_extended_std_g[15:-15].tolist(), 
+                    "std_b": y_extended_std_b[15:-15].tolist(),
+                    "is_blink": 1,
+                    "blink_length": int(_num_extended),
+                    "start": int(extended_blink_interval.start-15),
+                    "end": int(extended_blink_interval.stop-15)}
+                annotations_1.append(_ann)
 
-            # # # # # # # #
-            # Downsampled #
-            # # # # # # # #
-            y_downsampled_eyelids, blink_downsampled, _num_shrinked = downsample_blink(y_in=eyelids_dist, start=_blink.start, stop=_blink.stop, samples=None)
-            y_downsampled_std_r, _, _ = downsample_blink(y_in=std_r, start=_blink.start, stop=_blink.stop, samples=_num_shrinked)
-            y_downsampled_std_g, _, _ = downsample_blink(y_in=std_g, start=_blink.start, stop=_blink.stop, samples=_num_shrinked)
-            y_downsampled_std_b, _, _ = downsample_blink(y_in=std_b, start=_blink.start, stop=_blink.stop, samples=_num_shrinked)
-            # blink interval
-            downsampled_blink_interval = get_intervals(blink_downsampled.tolist(), val=1)[0]
-            # max_left_shift, max_right_shift = downsampled_blink_interval.start-2, 30-downsampled_blink_interval.stop-2
-            half_width = (downsampled_blink_interval.length+1)/2
-            max_left_shift, max_right_shift = 15-floor(half_width)-2, 15- ceil(half_width)-2
-            # save annotation
-            _ann = {
-                "pid": video_name,
-                "range": f"{_blink.start}-{_blink.stop}",
-                "eyelids_dist": y_downsampled_eyelids[15:-15].tolist(), 
-                "std_r": y_downsampled_std_r[15:-15].tolist(), 
-                "std_g": y_downsampled_std_g[15:-15].tolist(), 
-                "std_b": y_downsampled_std_b[15:-15].tolist(),
-                "is_blink": 1,
-                "blink_length": int(_num_shrinked),
-                "start": int(downsampled_blink_interval.start-15),
-                "end": int(downsampled_blink_interval.stop-15)}
-            annotations_1.append(_ann)
+                # # # # # # # # # # #
+                # Upsampled Shifted #
+                # # # # # # # # # # #
+                y_extended_shifted_eyelids, _steps_extended = shift(y_extended_eyelids, [-max_left_shift, max_right_shift])
+                y_extended_shifted_std_r, _ = shift(y_extended_std_r, _steps_extended)
+                y_extended_shifted_std_g, _ = shift(y_extended_std_g, _steps_extended)
+                y_extended_shifted_std_b, _ = shift(y_extended_std_b, _steps_extended)
+                blink_extended_shifted, _ = shift(blink_extended, _steps_extended)
+                # blink interval
+                extended_blink_interval = get_intervals(blink_extended_shifted.tolist(), val=1)[0]
+                # save annotation
+                _ann = {
+                    "pid": video_name,
+                    "range": f"{_blink.start}-{_blink.stop}",
+                    "eyelids_dist": y_extended_shifted_eyelids[15:-15].tolist(), 
+                    "std_r": y_extended_shifted_std_r[15:-15].tolist(), 
+                    "std_g": y_extended_shifted_std_g[15:-15].tolist(), 
+                    "std_b": y_extended_shifted_std_b[15:-15].tolist(),
+                    "is_blink": 1,
+                    "blink_length": int(_num_extended),
+                    "start": int(extended_blink_interval.start-15),
+                    "end": int(extended_blink_interval.stop-15)}
+                annotations_1.append(_ann)
 
-            # # # # # # # # # # # #
-            # Downsampled Shifted #
-            # # # # # # # # # # # #
-            y_downsampled_shifted_eyelids, _steps_downsampled = shift(y_downsampled_eyelids, [-max_left_shift, max_right_shift])
-            y_downsampled_shifted_std_r, _ = shift(y_downsampled_std_r, _steps_downsampled)
-            y_downsampled_shifted_std_g, _ = shift(y_downsampled_std_g, _steps_downsampled)
-            y_downsampled_shifted_std_b, _ = shift(y_downsampled_std_b, _steps_downsampled)
-            blink_downsampled_shifted, _ = shift(blink_downsampled, _steps_downsampled)
+                # # # # # # # #
+                # Downsampled #
+                # # # # # # # #
+                y_downsampled_eyelids, blink_downsampled, _num_shrinked = downsample_blink(y_in=eyelids_dist, start=_blink.start, stop=_blink.stop, samples=None)
+                y_downsampled_std_r, _, _ = downsample_blink(y_in=std_r, start=_blink.start, stop=_blink.stop, samples=_num_shrinked)
+                y_downsampled_std_g, _, _ = downsample_blink(y_in=std_g, start=_blink.start, stop=_blink.stop, samples=_num_shrinked)
+                y_downsampled_std_b, _, _ = downsample_blink(y_in=std_b, start=_blink.start, stop=_blink.stop, samples=_num_shrinked)
+                # blink interval
+                downsampled_blink_interval = get_intervals(blink_downsampled.tolist(), val=1)[0]
+                # max_left_shift, max_right_shift = downsampled_blink_interval.start-2, 30-downsampled_blink_interval.stop-2
+                half_width = (downsampled_blink_interval.length+1)/2
+                max_left_shift, max_right_shift = 15-floor(half_width)-2, 15- ceil(half_width)-2
+                # save annotation
+                _ann = {
+                    "pid": video_name,
+                    "range": f"{_blink.start}-{_blink.stop}",
+                    "eyelids_dist": y_downsampled_eyelids[15:-15].tolist(), 
+                    "std_r": y_downsampled_std_r[15:-15].tolist(), 
+                    "std_g": y_downsampled_std_g[15:-15].tolist(), 
+                    "std_b": y_downsampled_std_b[15:-15].tolist(),
+                    "is_blink": 1,
+                    "blink_length": int(_num_shrinked),
+                    "start": int(downsampled_blink_interval.start-15),
+                    "end": int(downsampled_blink_interval.stop-15)}
+                annotations_1.append(_ann)
 
-            downsampled_blink_interval = get_intervals(blink_downsampled_shifted.tolist(), val=1)[0]
-            # save annotation
-            _ann = {
-                "pid": video_name,
-                "range": f"{_blink.start}-{_blink.stop}",
-                "eyelids_dist": y_downsampled_shifted_eyelids[15:-15].tolist(), 
-                "std_r": y_downsampled_shifted_std_r[15:-15].tolist(), 
-                "std_g": y_downsampled_shifted_std_g[15:-15].tolist(), 
-                "std_b": y_downsampled_shifted_std_b[15:-15].tolist(),
-                "is_blink": 1,
-                "blink_length": int(_num_shrinked),
-                "start": int(downsampled_blink_interval.start-15),
-                "end": int(downsampled_blink_interval.stop-15)}
-            annotations_1.append(_ann)
+                # # # # # # # # # # # #
+                # Downsampled Shifted #
+                # # # # # # # # # # # #
+                y_downsampled_shifted_eyelids, _steps_downsampled = shift(y_downsampled_eyelids, [-max_left_shift, max_right_shift])
+                y_downsampled_shifted_std_r, _ = shift(y_downsampled_std_r, _steps_downsampled)
+                y_downsampled_shifted_std_g, _ = shift(y_downsampled_std_g, _steps_downsampled)
+                y_downsampled_shifted_std_b, _ = shift(y_downsampled_std_b, _steps_downsampled)
+                blink_downsampled_shifted, _ = shift(blink_downsampled, _steps_downsampled)
+
+                downsampled_blink_interval = get_intervals(blink_downsampled_shifted.tolist(), val=1)[0]
+                # save annotation
+                _ann = {
+                    "pid": video_name,
+                    "range": f"{_blink.start}-{_blink.stop}",
+                    "eyelids_dist": y_downsampled_shifted_eyelids[15:-15].tolist(), 
+                    "std_r": y_downsampled_shifted_std_r[15:-15].tolist(), 
+                    "std_g": y_downsampled_shifted_std_g[15:-15].tolist(), 
+                    "std_b": y_downsampled_shifted_std_b[15:-15].tolist(),
+                    "is_blink": 1,
+                    "blink_length": int(_num_shrinked),
+                    "start": int(downsampled_blink_interval.start-15),
+                    "end": int(downsampled_blink_interval.stop-15)}
+                annotations_1.append(_ann)
 
             # plots
             if args.generate_plots:
@@ -449,38 +452,41 @@ if __name__=="__main__":
                 plt.plot(y_shifted_std_g[15:-15], "g")
                 plt.plot(y_shifted_std_b[15:-15], "b")
                 plt.plot(blink_shifted[15:-15])
-                # extended
-                plt.subplot(2,3, 2)
-                plt.title(f"extended {_num_extended}")
-                plt.plot(y_extended_eyelids[15:-15], "k")
-                plt.plot(y_extended_std_r[15:-15], "r")
-                plt.plot(y_extended_std_g[15:-15], "g")
-                plt.plot(y_extended_std_b[15:-15], "b")
-                plt.plot(blink_extended[15:-15])
-                plt.subplot(2,3, 5)
-                #  extended shifted
-                plt.title(f"shifted by {_steps_extended}")
-                plt.plot(y_extended_shifted_eyelids[15:-15], "k")
-                plt.plot(y_extended_shifted_std_r[15:-15], "r")
-                plt.plot(y_extended_shifted_std_g[15:-15], "g")
-                plt.plot(y_extended_shifted_std_b[15:-15], "b")
-                plt.plot(blink_extended_shifted[15:-15])
-                # shrinked
-                plt.subplot(2,3, 3)
-                plt.title(f"shrinked {_num_shrinked}")
-                plt.plot(y_downsampled_eyelids[15:-15], "k")
-                plt.plot(y_downsampled_std_r[15:-15], "r")
-                plt.plot(y_downsampled_std_g[15:-15], "g")
-                plt.plot(y_downsampled_std_b[15:-15], "b")
-                plt.plot(blink_downsampled[15:-15])
-                plt.subplot(2,3, 6)
-                #  extended shifted
-                plt.title(f"shifted by {_steps_downsampled}")
-                plt.plot(y_downsampled_shifted_eyelids[15:-15], "k")
-                plt.plot(y_downsampled_shifted_std_r[15:-15], "r")
-                plt.plot(y_downsampled_shifted_std_g[15:-15], "g")
-                plt.plot(y_downsampled_shifted_std_b[15:-15], "b")
-                plt.plot(blink_downsampled_shifted[15:-15])
+                # TODO:
+                #   - fix plot size
+                if args.eval:
+                    # extended
+                    plt.subplot(2,3, 2)
+                    plt.title(f"extended {_num_extended}")
+                    plt.plot(y_extended_eyelids[15:-15], "k")
+                    plt.plot(y_extended_std_r[15:-15], "r")
+                    plt.plot(y_extended_std_g[15:-15], "g")
+                    plt.plot(y_extended_std_b[15:-15], "b")
+                    plt.plot(blink_extended[15:-15])
+                    plt.subplot(2,3, 5)
+                    #  extended shifted
+                    plt.title(f"shifted by {_steps_extended}")
+                    plt.plot(y_extended_shifted_eyelids[15:-15], "k")
+                    plt.plot(y_extended_shifted_std_r[15:-15], "r")
+                    plt.plot(y_extended_shifted_std_g[15:-15], "g")
+                    plt.plot(y_extended_shifted_std_b[15:-15], "b")
+                    plt.plot(blink_extended_shifted[15:-15])
+                    # shrinked
+                    plt.subplot(2,3, 3)
+                    plt.title(f"shrinked {_num_shrinked}")
+                    plt.plot(y_downsampled_eyelids[15:-15], "k")
+                    plt.plot(y_downsampled_std_r[15:-15], "r")
+                    plt.plot(y_downsampled_std_g[15:-15], "g")
+                    plt.plot(y_downsampled_std_b[15:-15], "b")
+                    plt.plot(blink_downsampled[15:-15])
+                    plt.subplot(2,3, 6)
+                    #  extended shifted
+                    plt.title(f"shifted by {_steps_downsampled}")
+                    plt.plot(y_downsampled_shifted_eyelids[15:-15], "k")
+                    plt.plot(y_downsampled_shifted_std_r[15:-15], "r")
+                    plt.plot(y_downsampled_shifted_std_g[15:-15], "g")
+                    plt.plot(y_downsampled_shifted_std_b[15:-15], "b")
+                    plt.plot(blink_downsampled_shifted[15:-15])
 
                 if _once_legend:
                     fig.legend()
@@ -503,7 +509,7 @@ if __name__=="__main__":
 
     annotations = equal_annotation_0 + equal_annotation_1
     # save annotations in a file
-    annotations_folder_path = os.path.join(annotations_folder, f"annotations-{args.suffix}.json")
+    annotations_folder_path = os.path.join(annotations_folder, args.dataset, f"annotations-{args.suffix}.json")
     with open(annotations_folder_path, "w") as f:
         json.dump(annotations, f)
     
