@@ -120,10 +120,11 @@ if __name__=="__main__":
                 annds_paths.append(os.path.join(root,dir))
     #
     #
-
-    for anns_path in tqdm.tqdm(annds_paths, total=len(annds_paths), desc="participants"):
+    vid_progress = tqdm.tqdm(annds_paths, total=len(annds_paths), desc="participants")
+    for anns_path in vid_progress:
         video_name = os.path.dirname(anns_path)
         video_name = os.path.relpath(video_name, dataset)
+        vid_progress.set_postfix(vid=video_name)
         # 
         # read data
         # 
@@ -497,7 +498,7 @@ if __name__=="__main__":
                 plt.savefig(img_output_path, dpi=300, bbox_inches='tight')
                 plt.close(fig)
     
-
+    vid_progress.close()
     
     if args.equal:
         _max_num = min(len(annotations_0), len(annotations_1))
