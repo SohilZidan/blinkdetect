@@ -151,7 +151,7 @@ def find_max(ls: list):
         print(ls[0],type(ls[0]))
         raise(e)
 
-def fill_missing_frames(input_df: pd.DataFrame):
+def fill_missing_frames(input_df: pd.DataFrame, participant_id, dataset):
         data_df = input_df.copy()
         ordered_frames = data_df.index
 
@@ -165,7 +165,7 @@ def fill_missing_frames(input_df: pd.DataFrame):
             new_row = [
                 participant_id, # 1
                 'face_1', # 1
-                f'{dataset_root}/BlinkingValidationSetVideos/{participant_id}/frames/{_current_frame}', # 1
+                f'{dataset}/{participant_id}/frames/{_current_frame}', # 1
                 1,0, # 2
                 0,0,0,0, # 4
                 np.nan,np.nan, # 2
@@ -264,7 +264,7 @@ if __name__=="__main__":
     
 
         # fill missing frames
-        _frames = fill_missing_frames(data_df)
+        _frames = fill_missing_frames(data_df, video_name, dataset)
 
         # type casting
         data_types_dict = {
