@@ -513,7 +513,10 @@ if __name__=="__main__":
     with open(annotations_folder_path, "w") as f:
         json.dump(annotations, f)
     
-    all_blinks *= 6
+    if args.eval:
+        all_blinks *= 2
+    else:
+        all_blinks *= 6
     # save meta
     args_dict = vars(args)
     args_dict['all_blinks'] = len(equal_annotation_1)
