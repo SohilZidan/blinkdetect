@@ -112,7 +112,9 @@ if __name__=="__main__":
         
         # load images
         _images = sorted(glob.glob(f"{frames_root}/*.png")) 
-        if end == -1: end = len(glob.glob(f"{frames_root}/*.png"))
+        # if end == -1: 
+        start = 0
+        end = len(glob.glob(f"{frames_root}/*.png"))
 
         total_range = end-start
         batch = args.batch
