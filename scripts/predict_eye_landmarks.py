@@ -41,9 +41,14 @@ dataset_root = os.path.join(os.path.dirname(__file__), "..", "dataset")
 
 # 
 # eye landmarks indices
+# lower starts with the left corner
+# upper starts with the right corner
+# right corner is in the upper
+# left corner is in the lower part
+# 
 lower_right=[362,382,381,380,374,373,390,249]
 upper_right=[263,466,388,387,386,385,384,398]
-lower_left=[23, 7, 163, 144, 145, 153, 154, 155]
+lower_left=[33, 7, 163, 144, 145, 153, 154, 155]
 upper_left=[133, 173, 157, 158, 159, 160, 161, 246]
 # 
 eye_corners = [lower_right[0], upper_right[0]]
@@ -85,7 +90,7 @@ def extract_eye_region(face: np.ndarray, facemeshnet, iris_net):
         x1=eye_center[0]
         y1=eye_center[1]
         # check if the center is at the edges of the image
-        _enlarge = 64
+        _enlarge = 40
         _enlarge = min([x1, width-x1, y1, height-y1,_enlarge])
         left=int(x1-_enlarge)
         right=int(x1+_enlarge)
@@ -115,6 +120,65 @@ def extract_eye_region(face: np.ndarray, facemeshnet, iris_net):
         pupil_center=(int(x_pupil_center), int(y_pupil_center))
 
         resp[_eye] = {"eye_region": eye_region, "eye_corners":eye_corners, "pupil_center":pupil_center, "eye":eye[:, frm:to, :]}
+
+    return resp
+
+def extract_eye_region_curve(face: np.ndarray, facemeshnet, iris_net):
+    """
+    """
+    resp = {}
+    height, width = 192, 192
+    img = cv2.resize(face, (width, height))
+    detections = facemeshnet.predict_on_image(img).cpu().numpy()
+    for _eye in eye_indices:
+
+        # get eye markers
+        _detections = np.array(list(map(detections.__getitem__, eye_indices[_eye])))
+
+        # compute the center and enlarge
+        eye_center=np.mean(_detections,axis=0)
+        x1=eye_center[0]
+        y1=eye_center[1]
+        # check if the center is at the edges of the image
+        _enlarge = 40
+        _enlarge = min([x1, width-x1, y1, height-y1,_enlarge])
+        left=int(x1-_enlarge)
+        right=int(x1+_enlarge)
+        top=int(y1-_enlarge)
+        bottom=int(y1+_enlarge)
+
+        # iris detection
+        # get the eye region
+        eye_region = img[top:bottom,left:right, :]
+        eye_region = cv2.resize(eye_region, (64, 64))
+
+        eye_gpu, iris_gpu = iris_net.predict_on_image(eye_region)
+
+        eye = eye_gpu.cpu().numpy()
+        iris = iris_gpu.cpu().numpy()
+        # # # # # #
+        # eyelids #
+        # # # # # #
+        frm = 1
+        to = 16
+        x, y = eye[:, frm:to, 0].reshape(-1), eye[:, frm:to, 1].reshape(-1)
+        # eye_corners = [(int(x[0]),int(y[0])), (int(x[-1]),int(y[-1]))]
+        eye_corners = [tuple(eye[:, 0,0:2].reshape(-1)), tuple(eye[:, 8,0:2].reshape(-1))]
+
+        midx = [eye_corners[0][0]]
+        midy = [eye_corners[0][1]]
+        midx += [np.mean([x[i], x[i+8]]) for i in range(7)]
+        midy += [np.mean([y[i], y[i+8]]) for i in range(7)]
+        midx += [eye_corners[1][0]]
+        midy += [eye_corners[1][1]]
+
+        # # # # #
+        # iris  #
+        # # # # #
+        x_pupil_center, y_pupil_center ,_ = iris[0, 0]
+        pupil_center=(int(x_pupil_center), int(y_pupil_center))
+
+        resp[_eye] = {"eye_region": eye_region, "eye_corners":eye_corners, "pupil_center":pupil_center, "eye": eye[:, 0:16, :], "midx": midx, 'midy':midy}
 
     return resp
 
@@ -149,6 +213,38 @@ def color_analysis(eye_region, eye_corners, pupil_center, eye):
         _mean.append(np.mean(zi))
 
     return line_points, _std, _mean, _eyelids_dist
+
+def color_analysis_curve(eye_region, midx, midy, eye):
+    # 
+    mid_points = np.stack([midx,midy], axis=1)
+    diff_mid_points = mid_points[1:] - mid_points[:-1]
+    _nums = np.ceil(np.linalg.norm(diff_mid_points, axis=1)).astype(np.int32)
+
+    acc_x = np.array([])
+    acc_y = np.array([])
+    for i in range(len(diff_mid_points)):
+        num_t = _nums[i]
+        acc_x = np.hstack((acc_x, np.linspace(midx[i], midx[i+1], num_t)))
+        
+        acc_y = np.hstack((acc_y, np.linspace(midy[i], midy[i+1], num_t)))
+        
+    # x, y = np.hstack((np.linspace(x0, x1, num1), np.linspace(x1, x2, num2))), np.hstack((np.linspace(y0, y1, num1), np.linspace(y1, y2, num2)))
+    x, y = acc_x, acc_y
+
+    # eyelids distance
+    _eyelids_dist = eyelids_directed_hausdorff(set1_indices=[1,8], set2_indices=[9,16], landmarks=eye)
+    # 
+
+    _std = []
+    _mean = []
+    for _dim in range(eye_region.shape[2]):
+        z = eye_region[:,:,_dim].copy()
+        zi = scipy.ndimage.map_coordinates(z, np.vstack((y,x)))
+        # measurements  
+        _std.append(np.std(zi))
+        _mean.append(np.mean(zi))
+
+    return [], _std, _mean, _eyelids_dist
 
 def saveEyeChange(eye_region, color_value, file_name, line_points, line_type: str="straight"):
     _std = np.std(color_value)
@@ -260,7 +356,7 @@ def predict_eye_region(images_paths: list, facesInfo: pd.DataFrame, facemeshnet,
 
         # face mesh prediction
         img_facemesh = aligned_facial_img.copy()
-        resp = extract_eye_region(face=img_facemesh, facemeshnet=facemeshnet, iris_net=iris_net)
+        resp = extract_eye_region_curve(face=img_facemesh, facemeshnet=facemeshnet, iris_net=iris_net)
         
         # eye_region, eye_corners, pupil_center, eye = extract_eye_region(face=face, facemeshnet=facemeshnet, iris_net=iris_net)
         # img_facemesh = cv2.resize(img_facemesh, (192, 192))
@@ -272,7 +368,8 @@ def predict_eye_region(images_paths: list, facesInfo: pd.DataFrame, facemeshnet,
         # # # # # # # # # # # # # # #
         
         for _eye in resp:
-            line_points, _std, _mean, _eyelids_dist = color_analysis(**resp[_eye])
+            # line_points, _std, _mean, _eyelids_dist = color_analysis(**resp[_eye])
+            line_points, _std, _mean, _eyelids_dist = color_analysis_curve(resp[_eye]['eye_region'], resp[_eye]['midx'], resp[_eye]['midy'], resp[_eye]['eye'])
             resp[_eye]['line_points'] = line_points
             resp[_eye]['std'] = _std
             resp[_eye]['mean_color'] = _mean
@@ -323,10 +420,13 @@ if __name__=='__main__':
                 videos_paths.append(os.path.join(root,dir))
     #
     #
-    for video_path in videos_paths:
+    videos_progress = tqdm.tqdm(videos_paths, total=len(videos_paths), desc="vid")
+    for video_path in videos_progress:
         # input 
         video_name = os.path.dirname(video_path)
         video_name = os.path.relpath(video_name, dataset)
+        videos_progress.set_postfix(video=video_name)
+
         frames_path=os.path.join(os.path.dirname(video_path), "frames")
         if not os.path.exists(frames_path):
             continue
@@ -365,7 +465,7 @@ if __name__=='__main__':
 
         # load images
         _images = sorted(glob.glob(f"{frames_path}/*.png")) 
-        if end == -1: end = len(glob.glob(f"{frames_path}/*.png"))
+        if end == -1: end = len(_images)
 
         # Load models:
         # face mesh
@@ -382,7 +482,7 @@ if __name__=='__main__':
         _data_df = _data_df.loc[(_data_df.index.get_level_values('participant_id') == video_name) & (_data_df.index.get_level_values('face_id') == 'face_1')].reset_index(level=['participant_id', 'face_id'])
 
 
-        for i in tqdm.tqdm(range(_iterations), total=_iterations):
+        for i in tqdm.tqdm(range(_iterations), total=_iterations, leave=False):
             _batch_start = start+batch*i
             _batch_end = min(start+batch*(i+1),end)
             print(f"batch {i} --> {_batch_start}, {_batch_end}")
@@ -434,3 +534,5 @@ if __name__=='__main__':
             store.get_storer('eyes_info_dataset_01').attrs.metadata = metadata
             store.close()
             print(f"results saved into {output_file_path_hdf5}")
+
+    videos_progress.close()
