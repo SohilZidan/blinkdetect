@@ -123,7 +123,8 @@ if __name__=="__main__":
         batch = args.batch
         _iterations = ceil(total_range/batch)
         # print(_iterations)
-        for i in tqdm.tqdm(range(_iterations), total=_iterations, leave=False):
+        iteration_progress = tqdm.tqdm(range(_iterations), total=_iterations, leave=False)
+        for i in iteration_progress:
             _batch_start = start+batch*i
             _batch_end = min(start+batch*(i+1),end)
             _new_detections = extract_faces(
@@ -140,6 +141,8 @@ if __name__=="__main__":
             with open( faceinfo_file_path_pkl, "wb" ) as pkl_file:
                 pickle.dump(_all_detections, pkl_file)
 
-            print(f"{len(_all_detections)} detections results saved into {faceinfo_file_path_pkl}")
+            # print(f"{len(_all_detections)} detections results saved into {faceinfo_file_path_pkl}")
+            iteration_progress.set_postfix(saved=f"{len(_all_detections)} dets saved")
+        iteration_progress.close()
     
     videos_progress.close()
