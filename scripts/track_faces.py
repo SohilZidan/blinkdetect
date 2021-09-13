@@ -2,7 +2,11 @@ import argparse
 import os 
 import glob
 from math import ceil
-import pickle
+import sys
+if sys.version_info <= (3, 7):
+    import pickle5 as pickle
+else:
+    import pickle
 import tqdm
 import shutil
 from deepface.DeepFace import build_model, represent
