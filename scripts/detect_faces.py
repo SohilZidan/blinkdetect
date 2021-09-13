@@ -36,7 +36,7 @@ def extract_faces(images_paths: list, start: int = 0, end: int = -1, frames_exce
 
     _images = images_paths
 
-    for _img_path in tqdm.tqdm(_images[start:end], total=len(_images[start:end])):
+    for _img_path in tqdm.tqdm(_images[start:end], total=len(_images[start:end]), leave=False):
         # 
         img_name = os.path.basename(_img_path)
         _name, _ext = img_name.split(".")
@@ -87,10 +87,13 @@ if __name__=="__main__":
                 videos_paths.append(os.path.join(root,dir))
     #
     # 
-    for video_path in videos_paths:
+    videos_progress = tqdm.tqdm(videos_paths, total=len(videos_paths), desc="vid")
+    for video_path in videos_progress:
         # input
         video_name = os.path.dirname(video_path)
         video_name = os.path.relpath(video_name, dataset)
+        videos_progress.set_postfix(video=video_name)
+
         frames_root=os.path.normpath(os.path.join(os.path.dirname(video_path), "frames"))
         if not os.path.exists(frames_root):
             continue
@@ -120,7 +123,7 @@ if __name__=="__main__":
         batch = args.batch
         _iterations = ceil(total_range/batch)
         # print(_iterations)
-        for i in tqdm.tqdm(range(_iterations), total=_iterations):
+        for i in tqdm.tqdm(range(_iterations), total=_iterations, leave=False):
             _batch_start = start+batch*i
             _batch_end = min(start+batch*(i+1),end)
             _new_detections = extract_faces(
@@ -138,3 +141,5 @@ if __name__=="__main__":
                 pickle.dump(_all_detections, pkl_file)
 
             print(f"{len(_all_detections)} detections results saved into {faceinfo_file_path_pkl}")
+    
+    videos_progress.close()
