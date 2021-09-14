@@ -465,7 +465,8 @@ if __name__=='__main__':
 
         # load images
         _images = sorted(glob.glob(f"{frames_path}/*.png")) 
-        if end == -1: end = len(_images)
+        start = 0
+        end = len(_images)
 
         # Load models:
         # face mesh

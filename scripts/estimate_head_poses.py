@@ -74,7 +74,8 @@ def main(args):
 
         # load images
         images_paths = sorted(glob.glob(f"{frames_root}/*.png")) 
-        if end == -1: end = len(glob.glob(f"{frames_root}/*.png"))
+        start = 0
+        end = len(glob.glob(f"{frames_root}/*.png"))
 
         # load detections
         with open(faces_detection_file_path, "rb") as _dets_file:
