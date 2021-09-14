@@ -317,7 +317,7 @@ def predict_eye_region(images_paths: list, facesInfo: pd.DataFrame, facemeshnet,
     _images = images_paths
     
 
-    for _img_path in tqdm.tqdm(_images, total=len(_images)):
+    for _img_path in tqdm.tqdm(_images, total=len(_images), desc="frame"):
         # 
         img_name = os.path.basename(_img_path)
         _name, _ = img_name.split(".")
@@ -482,10 +482,10 @@ if __name__=='__main__':
         _data_df = _data_df.loc[(_data_df.index.get_level_values('participant_id') == video_name) & (_data_df.index.get_level_values('face_id') == 'face_1')].reset_index(level=['participant_id', 'face_id'])
 
 
-        for i in tqdm.tqdm(range(_iterations), total=_iterations, leave=False):
+        for i in tqdm.tqdm(range(_iterations), total=_iterations, leave=False, desc="batch"):
             _batch_start = start+batch*i
             _batch_end = min(start+batch*(i+1),end)
-            print(f"batch {i} --> {_batch_start}, {_batch_end}")
+            # print(f"batch {i} --> {_batch_start}, {_batch_end}")
             # get images
             images_names = [os.path.basename(_path).split(".")[0] for _path in _images[_batch_start: _batch_end]]
             currentInputDF = _data_df.loc[_data_df.index.isin(images_names)]
@@ -533,6 +533,6 @@ if __name__=='__main__':
                 }
             store.get_storer('eyes_info_dataset_01').attrs.metadata = metadata
             store.close()
-            print(f"results saved into {output_file_path_hdf5}")
+            # print(f"results saved into {output_file_path_hdf5}")
 
     videos_progress.close()

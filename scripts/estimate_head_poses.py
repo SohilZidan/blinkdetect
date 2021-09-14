@@ -84,13 +84,13 @@ def main(args):
         batch = args.batch
         _iterations = ceil(total_range/batch)
 
-        for i in tqdm.tqdm(range(_iterations), total=_iterations, leave=False):
+        for i in tqdm.tqdm(range(_iterations), total=_iterations, leave=False, desc="batch"):
             _batch_start = start+batch*i
             _batch_end = min(start+batch*(i+1),end)
             # 
             _images = images_paths[_batch_start:_batch_end]
             # 
-            for _img_idx in tqdm.tqdm(range(len(_images)), total=len(_images), leave=False):
+            for _img_idx in tqdm.tqdm(range(len(_images)), total=len(_images), leave=False, desc="frame"):
                 # 
                 _img_path = _images[_img_idx]
                 img_name = os.path.basename(_img_path)
@@ -101,7 +101,7 @@ def main(args):
 
                 # 
                 if type(_detections[_name]['faces']) is not dict:
-                    print(f'No face detected')
+                    print(f'No face detected for {_name}')
                     continue
                 faces = _detections[_name]['faces']
                 faces_ids = sorted(faces.keys())

@@ -223,19 +223,6 @@ def closest_pairs(A: np.ndarray, B: np.ndarray):
     return A[indexes]
 
 def track_faces_v1(img_path, dets, prev_faces={},frame_number="", closest = False):
-    
-    # print('test')
-    
-    #--------------------------- same 
-    if frame_number in ['006792', '006793']:
-        print()
-        print("detections keys:\n",dets.keys())
-        print("detections:\n",dets)
-        print("prev faces:\n", prev_faces)
-        print()
-        
-
-        
 
     current_faces = {}
     prev_faces_keys = sorted(prev_faces.keys())
@@ -262,16 +249,11 @@ def track_faces_v1(img_path, dets, prev_faces={},frame_number="", closest = Fals
     _face_idx = 1
 
     #--------------------------- track previous faces
-    # print()
-    # print("__________________________________________")
-    # print(prev_faces)
     if len(prev_faces) > 0:
         for face in prev_faces_keys:
             prev_img = cv2.imread(prev_faces[face]['_path'])
-            # new_img = img
+            # 
             klt_tracker.setOldframe(prev_img)
-            # print("feature points:\n",prev_faces[face]['tracking_info']['feature_points'])
-            # print("shape:\n",prev_faces[face]['tracking_info']['feature_points'].shape)
 
             klt_tracker.setFeatures(prev_faces[face]['tracking_info']['feature_points'])
             klt_resp, status = klt_tracker.track(img)
@@ -280,19 +262,10 @@ def track_faces_v1(img_path, dets, prev_faces={},frame_number="", closest = Fals
             prev_faces[face]['tracking_info']['status'] = status
             if status:
                 prev_faces[face]['tracking_info']['feature_points'] = klt_resp['good_new'].reshape(-1,1,2)
-        # prev_faces[face]['_path'] = img_path
-    if frame_number in ['006792', '006793']:
-        print()
-        # print("detections keys:\n",dets.keys())
-        # print("detections:\n",dets)
-        print("prev faces tracked:\n", prev_faces)
-        print()
+        
     #---------------------------
     # for each detected faces in the current frame:
-    # print("__________________________________________")
-    # print(prev_faces)
-    # print("__________________________________________")
-    # print(dets)
+    
     if type(dets) == dict:
         dets_keys = sorted(dets.keys())
         assigned = []
@@ -304,23 +277,15 @@ def track_faces_v1(img_path, dets, prev_faces={},frame_number="", closest = Fals
                 _dists = []
                 for key in dets_keys:
                     if key in assigned: 
-                        # print(f"continue from {key}")
-                        # _dists.append(1000000)
                         continue
-                    # print(key)
+                    # 
                     identity = dets[key]
-                    # facial_area = identity["facial_area"]
-                    # facial_img = img[facial_area[1]: facial_area[3], facial_area[0]: facial_area[2]]
-                    # left, right, top, down
                     # For alignment
                     landmarks = identity["landmarks"]
                     feature_points = np.array([[landmarks["left_eye"]], [landmarks["right_eye"]], [landmarks["nose"]], [landmarks["mouth_right"]], [landmarks['mouth_left']]])
                     if feature_points.shape[0] != tracked_feature_points.shape[0] and closest:
                         feature_points = closest_pairs(feature_points, tracked_feature_points)
-                    # _center = [(facial_area[1] + facial_area[3])/2, (facial_area[0]+ facial_area[2])/2]
-
                     # compute distance
-                    # _dists.append(symmetric_hausdorff(tracked_feature_points, feature_points))
                     _dist = np.linalg.norm(np.mean(tracked_feature_points, axis=0) - np.mean(feature_points, axis=0))
                     _dists.append({"face_id": key, "distance": _dist})
                 
@@ -329,14 +294,6 @@ def track_faces_v1(img_path, dets, prev_faces={},frame_number="", closest = Fals
                 # find minimum
                 _bbox_idx = min(enumerate(_dists), key=lambda x: x[1]['distance'])[0]
                 # if satisfied assign the bbox to this face
-                
-                # else:
-                #     matching_face_idx = f"face_{len(prev_faces_keys)+1}"
-                # print("det key:",dets_keys[_bbox_idx])
-                # print(f"{dets_keys[_bbox_idx]}:", dets[dets_keys[_bbox_idx]])
-                # print("face key:",face)
-                # print(f"{face}:", prev_faces[face]["tracking_info"])
-                # print("min dist:",_dists[_bbox_idx])
 
                 det_id = _dists[_bbox_idx]['face_id']
                 assigned.append(det_id)
@@ -358,8 +315,7 @@ def track_faces_v1(img_path, dets, prev_faces={},frame_number="", closest = Fals
                     resp = verify(img1_path=[
                         [prev_faces[face]["img_path"], facial_img]], 
                         enforce_detection=False, model=model)
-                    if frame_number in ['006792', '006793']:
-                            print(resp[0])
+                    
                     if resp[0]["verified"] and resp[0]['distance'] < 0.15:
                         matching_face_idx = face
                     else:
@@ -367,14 +323,6 @@ def track_faces_v1(img_path, dets, prev_faces={},frame_number="", closest = Fals
                         matching_face_idx = f"face_{len(prev_faces)}"
                 else:
                     matching_face_idx = face
-                
-                if frame_number in ['006792', '006793']:
-                    print("face: ", face, " -- det:", det_id, " -- matching:", matching_face_idx, " -- dist:", _dists[_bbox_idx]['distance'], " -- frame diff:", abs(int(frame_number)-int(prev_faces[face]['frame'])))
-
-                    
-                # prev_faces[face]['tracking_info']['status'] = status
-                # if not status:
-                    # prev_faces[face]['tracking_info']['feature_points'] = feature_points.copy()
 
                 current_faces[matching_face_idx] = {
                     '_path':img_path,
@@ -390,7 +338,6 @@ def track_faces_v1(img_path, dets, prev_faces={},frame_number="", closest = Fals
                     'pitch': dets[det_id]['pitch'],
                     'roll': dets[det_id]['roll']
                 }
-            # exit()
 
         # no previous faces were detected
         else:
@@ -401,7 +348,6 @@ def track_faces_v1(img_path, dets, prev_faces={},frame_number="", closest = Fals
                 identity = dets[key]
                 facial_area = identity["facial_area"]
                 facial_img = img[facial_area[1]: facial_area[3], facial_area[0]: facial_area[2]]
-                # left, right, top, down
                 # For alignment
                 landmarks = identity["landmarks"]
                 left_eye = landmarks["left_eye"]
@@ -410,9 +356,7 @@ def track_faces_v1(img_path, dets, prev_faces={},frame_number="", closest = Fals
                 _center = [(facial_area[1] + facial_area[3])/2, (facial_area[0]+ facial_area[2])/2]
 
                 feature_points = np.array([[landmarks["left_eye"]], [landmarks["right_eye"]], [landmarks["nose"]], [landmarks["mouth_right"]], [landmarks['mouth_left']]])
-                # print(feature_points)
-                # print(feature_points.shape)
-                # _center = [(facial_area[1] + facial_area[3])/2, (facial_area[0]+ facial_area[2])/2]
+                #
                 current_faces[matching_face_idx] = {
                     '_path':img_path,
                     'frame': frame_number,
@@ -488,7 +432,6 @@ def track_faces(img_path, dets, prev_faces={},frame_number="", method='deepface'
 
         for key in obj:
             prev_faces_keys = sorted(prev_faces.keys())
-            # print(obj.keys())
             identity = obj[key]
 
             facial_area = identity["facial_area"]
@@ -508,35 +451,19 @@ def track_faces(img_path, dets, prev_faces={},frame_number="", method='deepface'
             
 
             if len(prev_faces) > 0:
-                # for face in prev_faces:
-                # print(prev_faces['face_1'].keys())
                 if method =='deepface':
                     resp = verify(img1_path=[
                         [prev_faces[face]["img_path"], facial_img] for face in prev_faces_keys
                         ], 
                         enforce_detection=False, model=model)
-                    # resp = [resp[_k] for _k in sorted(resp.keys())]
-                    # if resp['verified'] and
-                    # print(prev_faces_keys)
-                    # print(resp) 
-                    # print(len([
-                    #     [prev_faces[face]["img_path"], facial_img] for face in prev_faces_keys
-                    #     ]))
-                    # _image = cv2.cvtColor(eye_region, cv2.COLOR_RGB2GRAY)
                     
-                    
-                        # cv2.imshow(prev_faces[prev_faces_keys[_idx]]['frame'], prev_faces[prev_faces_keys[_idx]]['img_path'])
-                        # cv2.waitKey(0)
-                    
-                    # time.sleep(10000)
                     verified_pairs = [
                         {
                             "distance": _item['distance'], 'face': prev_faces_keys[idx]
                         } 
                         for idx, _item in enumerate(resp) 
                         if (_item["verified"] and _item['distance'] < 0.15)]# or len(prev_faces)==2]
-                    # print("verified:\n",verified_pairs)
-                    # min(enumerate([r for r in resp if r["verified"]]), key=itemgetter(1))[0] 
+                    
                     if len(verified_pairs) > 0:
                         _face_idx = min(enumerate(verified_pairs), key=lambda x: x[1]['distance'])[0]
                         matching_face_idx = verified_pairs[_face_idx]['face']
@@ -549,21 +476,6 @@ def track_faces(img_path, dets, prev_faces={},frame_number="", method='deepface'
                         # prev_faces[matching_face_idx] = {"img_path"}
                         # prev_faces_keys.append(matching_face_idx)
 
-                    # 
-                    # 
-                    # print(matching_face_idx)
-                    # for _idx, _item in enumerate(resp): 
-                    #     print(_item); 
-                    #     print(prev_faces[prev_faces_keys[_idx]]['frame'])
-                    #     plt.subplot(1, len(resp)+1, _idx+1)
-                    #     plt.title(f"{prev_faces_keys[_idx]}")
-                    #     plt.imshow(cv2.cvtColor(prev_faces[prev_faces_keys[_idx]]['img_path'], cv2.COLOR_BGR2RGB))
-                    # plt.subplot(1, len(resp)+1, len(resp)+1)
-                    # plt.title(f"{matching_face_idx}")
-                    # plt.imshow(cv2.cvtColor(facial_img, cv2.COLOR_BGR2RGB))
-                    # plt.show()
-                    # 
-                    # 
                 elif method == 'klt':
                     resp = verify(img1_path=[
                         [prev_faces[face]["img_path"], facial_img] for face in prev_faces_keys
@@ -591,10 +503,7 @@ def track_faces(img_path, dets, prev_faces={},frame_number="", method='deepface'
                 else:
                     
                     _norms = [np.linalg.norm(np.array(prev_faces[face]["center"]) - np.array(_center)) for face in prev_faces_keys]
-                    # print(nose)
-                    # print([prev_faces[face]["center"] for face in prev_faces_keys]) 
-                    # print(_norms)
-                    # exit()
+
                     verified_pairs = [
                         {
                             "distance": _item, 'face': prev_faces_keys[idx]
@@ -602,8 +511,6 @@ def track_faces(img_path, dets, prev_faces={},frame_number="", method='deepface'
                         for idx, _item in enumerate(_norms) 
                         if _item < 10 * (int(frame_number)-int(prev_faces[prev_faces_keys[idx]]['frame']))
                         ]
-                    # print(verified_pairs)
-                    
                     # min norm
                     if len(verified_pairs) > 0:
                         _face_idx = min(enumerate(verified_pairs), key=lambda x: x[1]['distance'])[0]
@@ -617,15 +524,6 @@ def track_faces(img_path, dets, prev_faces={},frame_number="", method='deepface'
                 matching_face_idx = f"face_{_face_idx}"
                 _face_idx = _face_idx + 1
             
-
-            # prev_faces[matching_face_idx] = {
-            #     # 'img_path':img_path,
-            #     'img_path': facial_img,#[:, :, ::-1],
-            #     'facial_area': {"bbox": facial_area, "mode": "XYXY"},
-            #     'left_eye': left_eye,
-            #     'right_eye': right_eye,
-            #     'nose': nose
-            #     }
             if method == 'klt': feature_points = np.array([[left_eye], [right_eye], [nose], [landmarks["mouth_right"]], [landmarks['mouth_left']]])
             else: feature_points = []
             current_faces[matching_face_idx] = {
@@ -670,14 +568,12 @@ def track_faces_batch(
     """
     # ---------------
     _all_faces = {**prev_faces}
-    # print(_all_faces)
     # ---------------
-    # 
     _detections = {}
 
     _images = images_paths[start:end]
 
-    for _img_path in tqdm.tqdm(_images, total=len(_images), leave=False):
+    for _img_path in tqdm.tqdm(_images, total=len(_images), leave=False, desc="frame"):
         # 
         img_name = os.path.basename(_img_path)
         _name, _ext = img_name.split(".")
@@ -689,26 +585,17 @@ def track_faces_batch(
         # add path and frames number
 
         # face tracking
-        # pri/nt(_img_path)
-        # print(_all_faces)
-        # _current_faces = track_faces(img_path = _img_path, dets=detections[_name]['faces'], prev_faces=_all_faces, frame_number=_name, align = True, method=method, limit=limit_angle)
         _current_faces = track_faces_v1(img_path = _img_path, dets=detections[_name]['faces'], prev_faces=_all_faces, frame_number=_name, closest=closest)
-        # print(_current_faces)
-        # _current_copy = _current_faces.copy()
         # TODO: best way to merge two dics
         _all_faces = {**_all_faces, **_current_faces}
-        # print(_all_faces)
+        # 
         if len(_current_faces) > 0 :
             faces_not_found=0
             n_faces = len(_current_faces)
         else:
             faces_not_found=1
             n_faces = 0
-        
-        # _current_copy = _current_faces.copy()
-        # for _face in _current_copy:
-        #     _current_copy[_face].pop('img_path')
-        
+        # 
         _detections[_name]={
             "img_path": _img_path,
             "faces": _current_faces, 
@@ -722,7 +609,6 @@ if __name__=="__main__":
 
 
     args = parser()
-    # participant_id = args.participant_id
     start, end = args.range
     resume = args.resume
     method = args.method
@@ -743,7 +629,9 @@ if __name__=="__main__":
         # input
         video_name = os.path.dirname(video_path)
         video_name = os.path.relpath(video_name, dataset)
+        # 
         videos_progress.set_postfix(video=video_name)
+        # 
         frames_root = os.path.normpath(os.path.join(os.path.dirname(video_path), "frames"))
         if not os.path.exists(frames_root):
             continue
@@ -777,8 +665,7 @@ if __name__=="__main__":
                     _face = cv2.imread(_face_path)
                     img_name = os.path.basename(_face_path)
                     _face_id, _ext = img_name.split(".")
-                    # _frame, _face_id = _name.split('_')
-                    _last_faces[_face_id] = {"img_path": _face}#, 'frame': _frame}
+                    _last_faces[_face_id] = {"img_path": _face}
                 
                 if os.path.exists(faceinfo_file_path_hdf5):
                     with pd.HDFStore(faceinfo_file_path_hdf5) as store:
@@ -801,39 +688,17 @@ if __name__=="__main__":
         batch = args.batch
         _iterations = ceil(total_range/batch)
         # 
-        for i in tqdm.tqdm(range(_iterations), total=_iterations, leave=False):
+        iterations_progress = tqdm.tqdm(range(_iterations), total=_iterations, leave=False, desc="batch")
+        for i in iterations_progress:
             _batch_start = start+batch*i
             _batch_end = min(start+batch*(i+1),end)
-            # print(_last_faces)
+            # 
             _tracking_resp, _last_faces = track_faces_batch(images_paths=_images, detections=_detections,start=_batch_start, end=_batch_end, frames_exception=_except_frames, prev_faces=_last_faces, method=method, limit_angle=_limit, closest=_closest)
-            # _new_detections = extract_faces(
-            #                                                     images_paths=_images, 
-            #                                                     start=_batch_start, 
-            #                                                     end=_batch_end, 
-            #                                                     frames_exception=_except_frames, 
-            #                                                     output_dir=faces_root)
-
-            # _all_detections = {**_old_detections, **_new_detections}
-
+            
             # Save last faces:
-            # if os.path.exists(last_faces_info):
-            # _faces_paths = glob.glob(f"{last_faces_info}/*.jpeg")
-            # print(_last_faces)
             for _face in _last_faces:
-                # {_last_faces[_face]['frame']}_
                 _path = os.path.join(last_faces_info, f"{_face}.jpg")
                 cv2.imwrite(_path, _last_faces[_face]['img_path'])
-            
-            # if i == 10:
-            #     exit()
-                
-            # for _face_path in _faces_paths:
-            #     # 
-            #     _face = cv2.imread(_face_path)
-            #     img_name = os.path.basename(_face_path)
-            #     _name, _ext = img_name.split(".")
-            #     _, _face_id = _name.split('_')
-            #     _last_faces[_face_id] = {"img_path": _face}
 
             # save the results
             # if os.path.exists(eyeinfo_file_path_hdf5):
@@ -905,13 +770,6 @@ if __name__=="__main__":
                 _data_df = pd.DataFrame(
                     columns=['img_path', 'faces_not_found', 'faces_number', 'left','top','right','bottom', 'left_eye_x', 'left_eye_y', 'right_eye_x', 'right_eye_y', 'nose_x', 'nose_y', 'yaw', 'pitch', 'roll'], 
                     index=index, )
-                # _data_df.astype(dtype={
-                #         # "participant_id":str, 
-                #         # "frame_num":str, 
-                #         "path":str, 
-                #         "mean_color":np.float64, 
-                #         "std":np.float64, 
-                #         "eyelids_dist":np.float64})
             
 
             new_df =  pd.DataFrame(
@@ -923,6 +781,7 @@ if __name__=="__main__":
             concatenated_df = pd.concat([_data_df, new_df])
             concatenated_df = concatenated_df[~concatenated_df.index.duplicated(keep='last')]
             concatenated_df = concatenated_df.sort_index()
+
             # save to csv
             concatenated_df.to_csv(faceinfo_file_path_csv)
 
@@ -936,7 +795,8 @@ if __name__=="__main__":
                 }
             store.get_storer('tracked_faces_dataset_01').attrs.metadata = metadata
             store.close()
-            print(f"results saved into {faceinfo_file_path_hdf5}")
 
+            # iterations_progress.set_postfix(f"results saved into {video_name}")
+            # print(f"results saved into {faceinfo_file_path_hdf5}")
+        iterations_progress.close()
     videos_progress.close()
-    # sys.stdout.close()

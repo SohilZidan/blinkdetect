@@ -36,7 +36,7 @@ def extract_faces(images_paths: list, start: int = 0, end: int = -1, frames_exce
 
     _images = images_paths
 
-    for _img_path in tqdm.tqdm(_images[start:end], total=len(_images[start:end]), leave=False):
+    for _img_path in tqdm.tqdm(_images[start:end], total=len(_images[start:end]), leave=False, desc="frame"):
         # 
         img_name = os.path.basename(_img_path)
         _name, _ext = img_name.split(".")
@@ -122,8 +122,8 @@ if __name__=="__main__":
         total_range = end-start
         batch = args.batch
         _iterations = ceil(total_range/batch)
-        # print(_iterations)
-        iteration_progress = tqdm.tqdm(range(_iterations), total=_iterations, leave=False)
+        
+        iteration_progress = tqdm.tqdm(range(_iterations), total=_iterations, leave=False, desc="batch")
         for i in iteration_progress:
             _batch_start = start+batch*i
             _batch_end = min(start+batch*(i+1),end)
