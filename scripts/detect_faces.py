@@ -87,7 +87,7 @@ if __name__=="__main__":
                 videos_paths.append(os.path.join(root,dir))
     #
     # 
-    videos_progress = tqdm.tqdm(videos_paths, total=len(videos_paths), desc="vid")
+    videos_progress = tqdm.tqdm(videos_paths, total=len(videos_paths), desc="face detection")
     for video_path in videos_progress:
         # input
         video_name = os.path.dirname(video_path)
