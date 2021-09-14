@@ -50,6 +50,7 @@ if __name__=="__main__":
     parser.add_argument("--suffix", default="-v0")
     parser.add_argument("--normalized", action="store_true")
     parser.add_argument("--equal", action="store_true", help="if set equal numbers of both classes ar generated")
+    parser.add_argument("--zero", action="store_true", help="if set no noblink will be generated")
     parser.add_argument("--eval", action="store_true")
     args = parser.parse_args()
     
@@ -116,15 +117,20 @@ if __name__=="__main__":
     for root,dirs, files in os.walk(dataset):
         for dir in files:
             name, ext = os.path.splitext(dir)
-            if ext in [".tag"]:
+            if args.dataset!='BlinkingValidationSetVideos':
+                if ext in [".tag"]:
+                    annds_paths.append(os.path.join(root,dir))
+            elif ext in [".mp4"]:
                 annds_paths.append(os.path.join(root,dir))
     #
     #
+    # print(annds_paths)
     vid_progress = tqdm.tqdm(annds_paths, total=len(annds_paths), desc="participants")
     for anns_path in vid_progress:
         video_name = os.path.dirname(anns_path)
         video_name = os.path.relpath(video_name, dataset)
         vid_progress.set_postfix(vid=video_name)
+        # print(video_name)
         # 
         # read data
         # 
@@ -173,14 +179,24 @@ if __name__=="__main__":
         else:
             closeness_list, blinking_anns = read_annotations_tag(anns_path)
 
-        face_found_anns = get_intervals(faces_not_found, val=0)
-        yaw_preds = get_intervals_between(yaw_angles, val=args.yaw_range)
-        pitch_preds = get_intervals_between(pitch_angles, val=args.pitch_range)
         
 
+        face_found_anns = get_intervals(faces_not_found, val=0)
+        yaw_preds = get_intervals_between(yaw_angles, val=int(args.yaw_range))
+        pitch_preds = get_intervals_between(pitch_angles, val=int(args.pitch_range))
+        
+        # new 
+        blinking_anns = blinking_anns.intersect(yaw_preds)
+        blinking_anns = blinking_anns.intersect(pitch_preds)
+        # print(blinking_anns)
+        # exit()
         #
         _noblink_range = [0, None]
         _once_legend = True
+
+        # _sum = 0
+        # for b in blinking_anns:
+        #     _sum += len(b)
 
         for _blink in tqdm.tqdm(blinking_anns, total=len(blinking_anns), desc="blinks"):
             blink_length = _blink.stop - _blink.start+1
@@ -201,9 +217,13 @@ if __name__=="__main__":
                 
                 _valid_intervals = _valid_intervals.intersect(yaw_preds)
                 _valid_intervals = _valid_intervals.intersect(pitch_preds)
-
+                
                 # walk through valid intervals
                 for _interval in _valid_intervals:
+                    if _interval.start < _blink.start and _interval.stop > _blink.stop:
+                        print(_interval, "-",_from,_to)
+                        print(_blink)
+
                     # 
                     if _interval.length+1 < 30:
                         continue
@@ -223,11 +243,16 @@ if __name__=="__main__":
                     while _examples < _n_required_examples:
 
                         random_end = random_start+30
+                        if random_end >= _blink.stop:
+                            break
 
                         y_eyelids_noblink, _no_blink, _num_noblink = resample_noblink(y_in=eyelids_dist, start=random_start, stop=random_end-1, samples=30)
                         y_std_r_noblink, _, _num_noblink = resample_noblink(y_in=std_r, start=random_start, stop=random_end-1, samples=_num_noblink)
                         y_std_g_noblink, _, _num_noblink = resample_noblink(y_in=std_g, start=random_start, stop=random_end-1, samples=_num_noblink)
                         y_std_b_noblink, _, _num_noblink = resample_noblink(y_in=std_b, start=random_start, stop=random_end-1, samples=_num_noblink)
+                        # new
+                        y_yaws, _, _num_noblink = resample_noblink(y_in=yaw_angles, start=random_start, stop=random_end-1, samples=_num_noblink)
+                        y_pitchs, _, _num_noblink = resample_noblink(y_in=pitch_angles, start=random_start, stop=random_end-1, samples=_num_noblink)
 
                         # save annotation
                         _ann = {
@@ -237,6 +262,8 @@ if __name__=="__main__":
                             "std_r": y_std_r_noblink.tolist(), 
                             "std_g": y_std_g_noblink.tolist(), 
                             "std_b": y_std_b_noblink.tolist(),
+                            "yaws": y_yaws.tolist(),
+                            "pitchs": y_pitchs.tolist(),
                             "is_blink": 0,
                             "blink_length": 0,
                             "start": 0,
@@ -266,13 +293,12 @@ if __name__=="__main__":
                         # 
                         random_start += _n_frames_skipped
 
-                _noblink_range[0] = _blink.stop+1
-
+            _noblink_range[0] = _blink.stop+1
 
             # # # # # # # # # # # # # # # # # # # # # #
             # Generate Blinks -- 6 augmented versions #
             # # # # # # # # # # # # # # # # # # # # # #
-            if blink_length > 30:
+            if blink_length > 23:
                 dropped_blinks+=1
                 continue
             all_blinks += 1
@@ -283,10 +309,16 @@ if __name__=="__main__":
             # # # # # # # #
             #  original   #
             # # # # # # # #
-            y_eyelids, blink, _num = upsample_blink(y_in=eyelids_dist, start=_blink.start, stop=_blink.stop, samples=blink_length)
+            try:
+                y_eyelids, blink, _num = upsample_blink(y_in=eyelids_dist, start=_blink.start, stop=_blink.stop, samples=blink_length)
+            except Exception as e:
+                continue
             y_std_r, _, _num = upsample_blink(y_in=std_r, start=_blink.start, stop=_blink.stop, samples=blink_length)
             y_std_g, _, _num = upsample_blink(y_in=std_g, start=_blink.start, stop=_blink.stop, samples=blink_length)
             y_std_b, _, _num = upsample_blink(y_in=std_b, start=_blink.start, stop=_blink.stop, samples=blink_length)
+            # new
+            y_yaws, _, _num = upsample_blink(y_in=yaw_angles, start=_blink.start, stop=_blink.stop, samples=blink_length)
+            y_pitchs, _, _num = upsample_blink(y_in=pitch_angles, start=_blink.start, stop=_blink.stop, samples=blink_length)
             # blink interval
             extended_blink_interval = get_intervals(blink.tolist(), val=1)[0]
             # max_left_shift, max_right_shift = extended_blink_interval.start-2, 30-extended_blink_interval.stop-2
@@ -301,38 +333,39 @@ if __name__=="__main__":
                 "std_r": y_std_r[15:-15].tolist(), 
                 "std_g": y_std_g[15:-15].tolist(), 
                 "std_b": y_std_b[15:-15].tolist(),
+                "yaws": y_yaws[15:-15].tolist(),
+                "pitchs": y_pitchs[15:-15].tolist(),
                 "is_blink": 1,
                 "blink_length": int(blink_length),
                 "start": int(extended_blink_interval.start-15),
                 "end": int(extended_blink_interval.stop-15)}
             annotations_1.append(_ann)
-
-
-            # # # # # #
-            # Shifted #
-            # # # # # #
-            y_shifted_eyelids, _steps_original = shift(y_eyelids, [-max_left_shift, max_right_shift])
-            y_shifted_std_r, _ = shift(y_std_r, _steps_original)
-            y_shifted_std_g, _ = shift(y_std_g, _steps_original)
-            y_shifted_std_b, _ = shift(y_std_b, _steps_original)
-            blink_shifted, _ = shift(blink, _steps_original)
-            extended_blink_interval = get_intervals(blink_shifted.tolist(), val=1)[0]
-            # save annotation
-            _ann = {
-                "pid": video_name,
-                "range": f"{_blink.start}-{_blink.stop}",
-                "eyelids_dist": y_shifted_eyelids[15:-15].tolist(), 
-                "std_r": y_shifted_std_r[15:-15].tolist(), 
-                "std_g": y_shifted_std_g[15:-15].tolist(), 
-                "std_b": y_shifted_std_b[15:-15].tolist(),
-                "is_blink": 1,
-                "blink_length": int(blink_length),
-                "start": int(extended_blink_interval.start-15),
-                "end": int(extended_blink_interval.stop-15)}
-            annotations_1.append(_ann)
-
 
             if not args.eval:
+                # # # # # #
+                # Shifted #
+                # # # # # #
+                y_shifted_eyelids, _steps_original = shift(y_eyelids, [-max_left_shift, max_right_shift])
+                y_shifted_std_r, _ = shift(y_std_r, _steps_original)
+                y_shifted_std_g, _ = shift(y_std_g, _steps_original)
+                y_shifted_std_b, _ = shift(y_std_b, _steps_original)
+                blink_shifted, _ = shift(blink, _steps_original)
+                extended_blink_interval = get_intervals(blink_shifted.tolist(), val=1)[0]
+                # save annotation
+                _ann = {
+                    "pid": video_name,
+                    "range": f"{_blink.start}-{_blink.stop}",
+                    "eyelids_dist": y_shifted_eyelids[15:-15].tolist(), 
+                    "std_r": y_shifted_std_r[15:-15].tolist(), 
+                    "std_g": y_shifted_std_g[15:-15].tolist(), 
+                    "std_b": y_shifted_std_b[15:-15].tolist(),
+                    "yaws": y_yaws[15:-15].tolist(),
+                    "pitchs": y_pitchs[15:-15].tolist(),
+                    "is_blink": 1,
+                    "blink_length": int(blink_length),
+                    "start": int(extended_blink_interval.start-15),
+                    "end": int(extended_blink_interval.stop-15)}
+                annotations_1.append(_ann)
                 # # # # # # #
                 # Upsampled #
                 # # # # # # #
@@ -353,6 +386,8 @@ if __name__=="__main__":
                     "std_r": y_extended_std_r[15:-15].tolist(), 
                     "std_g": y_extended_std_g[15:-15].tolist(), 
                     "std_b": y_extended_std_b[15:-15].tolist(),
+                    "yaws": y_yaws[15:-15].tolist(),
+                    "pitchs": y_pitchs[15:-15].tolist(),
                     "is_blink": 1,
                     "blink_length": int(_num_extended),
                     "start": int(extended_blink_interval.start-15),
@@ -377,6 +412,8 @@ if __name__=="__main__":
                     "std_r": y_extended_shifted_std_r[15:-15].tolist(), 
                     "std_g": y_extended_shifted_std_g[15:-15].tolist(), 
                     "std_b": y_extended_shifted_std_b[15:-15].tolist(),
+                    "yaws": y_yaws[15:-15].tolist(),
+                    "pitchs": y_pitchs[15:-15].tolist(),
                     "is_blink": 1,
                     "blink_length": int(_num_extended),
                     "start": int(extended_blink_interval.start-15),
@@ -403,6 +440,8 @@ if __name__=="__main__":
                     "std_r": y_downsampled_std_r[15:-15].tolist(), 
                     "std_g": y_downsampled_std_g[15:-15].tolist(), 
                     "std_b": y_downsampled_std_b[15:-15].tolist(),
+                    "yaws": y_yaws[15:-15].tolist(),
+                    "pitchs": y_pitchs[15:-15].tolist(),
                     "is_blink": 1,
                     "blink_length": int(_num_shrinked),
                     "start": int(downsampled_blink_interval.start-15),
@@ -427,6 +466,8 @@ if __name__=="__main__":
                     "std_r": y_downsampled_shifted_std_r[15:-15].tolist(), 
                     "std_g": y_downsampled_shifted_std_g[15:-15].tolist(), 
                     "std_b": y_downsampled_shifted_std_b[15:-15].tolist(),
+                    "yaws": y_yaws[15:-15].tolist(),
+                    "pitchs": y_pitchs[15:-15].tolist(),
                     "is_blink": 1,
                     "blink_length": int(_num_shrinked),
                     "start": int(downsampled_blink_interval.start-15),
@@ -435,27 +476,28 @@ if __name__=="__main__":
 
             # plots
             if args.generate_plots:
-                # plotting
-                fig, _ = plt.subplots(2, 3)
-                # original
-                plt.subplot(2,3, 1)
-                plt.title(f"original len: {blink_length}")
-                plt.plot(y_eyelids[15:-15], "k", label='eyelids distance')
-                plt.plot(y_std_r[15:-15], "r", label='std_r (Red)')
-                plt.plot(y_std_g[15:-15], "g", label='std_g (Green)')
-                plt.plot(y_std_b[15:-15], "b", label='std_b (Blue)')
-                plt.plot(blink[15:-15], label="Blink")
-                # shifted
-                plt.subplot(2,3, 4)
-                plt.title(f"shifted by {_steps_original}")
-                plt.plot(y_shifted_eyelids[15:-15], "k")
-                plt.plot(y_shifted_std_r[15:-15], "r")
-                plt.plot(y_shifted_std_g[15:-15], "g")
-                plt.plot(y_shifted_std_b[15:-15], "b")
-                plt.plot(blink_shifted[15:-15])
+                
                 # TODO:
                 #   - fix plot size
                 if not args.eval:
+                    # plotting
+                    fig, _ = plt.subplots(2, 3)
+                    # original
+                    plt.subplot(2,3, 1)
+                    plt.title(f"original len: {blink_length}")
+                    plt.plot(y_eyelids[15:-15], "k", label='eyelids distance')
+                    plt.plot(y_std_r[15:-15], "r", label='std_r (Red)')
+                    plt.plot(y_std_g[15:-15], "g", label='std_g (Green)')
+                    plt.plot(y_std_b[15:-15], "b", label='std_b (Blue)')
+                    plt.plot(blink[15:-15], label="Blink")
+                    # shifted
+                    plt.subplot(2,3, 4)
+                    plt.title(f"shifted by {_steps_original}")
+                    plt.plot(y_shifted_eyelids[15:-15], "k")
+                    plt.plot(y_shifted_std_r[15:-15], "r")
+                    plt.plot(y_shifted_std_g[15:-15], "g")
+                    plt.plot(y_shifted_std_b[15:-15], "b")
+                    plt.plot(blink_shifted[15:-15])
                     # extended
                     plt.subplot(2,3, 2)
                     plt.title(f"extended {_num_extended}")
@@ -474,7 +516,7 @@ if __name__=="__main__":
                     plt.plot(blink_extended_shifted[15:-15])
                     # shrinked
                     plt.subplot(2,3, 3)
-                    plt.title(f"shrinked {_num_shrinked}")
+                    plt.title(f"shrunk {_num_shrinked}")
                     plt.plot(y_downsampled_eyelids[15:-15], "k")
                     plt.plot(y_downsampled_std_r[15:-15], "r")
                     plt.plot(y_downsampled_std_g[15:-15], "g")
@@ -488,6 +530,17 @@ if __name__=="__main__":
                     plt.plot(y_downsampled_shifted_std_g[15:-15], "g")
                     plt.plot(y_downsampled_shifted_std_b[15:-15], "b")
                     plt.plot(blink_downsampled_shifted[15:-15])
+                
+                else:
+                    fig, _ = plt.subplots(1,1)
+                    # original
+                    plt.subplot(1,1, 1)
+                    plt.title(f"original len: {blink_length}")
+                    plt.plot(y_eyelids[15:-15], "k", label='eyelids distance')
+                    plt.plot(y_std_r[15:-15], "r", label='std_r (Red)')
+                    plt.plot(y_std_g[15:-15], "g", label='std_g (Green)')
+                    plt.plot(y_std_b[15:-15], "b", label='std_b (Blue)')
+                    plt.plot(blink[15:-15], label="Blink")
 
                 if _once_legend:
                     fig.legend()
@@ -504,6 +557,9 @@ if __name__=="__main__":
         _max_num = min(len(annotations_0), len(annotations_1))
         equal_annotation_0 = random.sample(annotations_0, _max_num)
         equal_annotation_1 = random.sample(annotations_1, _max_num)
+    elif args.zero:
+        equal_annotation_0 = []
+        equal_annotation_1 = annotations_1
     else:
         equal_annotation_0 = annotations_0
         equal_annotation_1 = annotations_1
