@@ -107,7 +107,7 @@ if __name__=="__main__":
         _except_frames = []
         _all_detections = {}
         if resume:
-            if os.path.exists(faceinfo_file_path_pkl):
+            if os.path.exists(faceinfo_file_path_pkl) and os.path.getsize(faceinfo_file_path_pkl) > 0:
                 with open( faceinfo_file_path_pkl, "rb" ) as pkl_file:
                     _all_detections = pickle.load(pkl_file)
                     _except_frames.extend(list(_all_detections.keys()))
