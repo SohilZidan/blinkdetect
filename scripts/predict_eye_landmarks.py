@@ -317,7 +317,7 @@ def predict_eye_region(images_paths: list, facesInfo: pd.DataFrame, facemeshnet,
     _images = images_paths
     
 
-    for _img_path in tqdm.tqdm(_images, total=len(_images), desc="frame"):
+    for _img_path in tqdm.tqdm(_images, total=len(_images), leave=False, desc="frame"):
         # 
         img_name = os.path.basename(_img_path)
         _name, _ = img_name.split(".")
