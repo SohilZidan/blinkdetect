@@ -64,14 +64,21 @@ def parser():
     _parser.add_argument('--batch', type=int, default=32, help='number of frames to be saved as a batch')
     _parser.add_argument('--resume', action='store_true', help='if true existed frames of an existed participant will not be replaced')
     _parser.add_argument('--save_faces', type=str, default="", help='wheather to save faces or not')
+    _parser.add_argument('--dim', required=True, choices=["3D", "2D"], help="decide in which dimension to compute eyelids distance")
 
     return _parser.parse_args()
 
-def eyelids_directed_hausdorff(set1_indices: list, set2_indices: list, landmarks: np.ndarray):
+def eyelids_directed_hausdorff_2D(set1_indices: list, set2_indices: list, landmarks: np.ndarray):
     A = landmarks[:, set1_indices[0]:set1_indices[1], 0:2].reshape((-1,2))
     B = landmarks[:, set2_indices[0]:set2_indices[1], 0:2].reshape((-1,2))
-
     return directed_hausdorff(B,A)[0]
+
+def eyelids_directed_hausdorff_3D(set1_indices: list, set2_indices: list, landmarks: np.ndarray):
+    A = landmarks[:, set1_indices[0]:set1_indices[1], :].reshape((-1,3))
+    B = landmarks[:, set2_indices[0]:set2_indices[1], :].reshape((-1,3))
+    return directed_hausdorff(B,A)[0]
+
+
 
 def extract_eye_region(face: np.ndarray, facemeshnet, iris_net):
     """
@@ -409,6 +416,11 @@ if __name__=='__main__':
     resume = args.resume
     _save_faces = args.save_faces
     dataset = os.path.join(dataset_root, args.dataset)
+
+    if args.dim == "3D":
+        eyelids_directed_hausdorff = eyelids_directed_hausdorff_3D
+    if args.dim == "2D":
+        eyelids_directed_hausdorff = eyelids_directed_hausdorff_2D
 
     #
     # video paths
