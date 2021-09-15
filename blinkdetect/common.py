@@ -23,7 +23,7 @@ def read_annotations_tag(input_file: str):
     closeness_list = []
 
     # Using readlines() 
-    file1 = open(input_file, encoding="utf-8") 
+    file1 = open(input_file, "r", encoding="utf-8") 
     Lines = file1.readlines() 
 
     # find "#start" line 
