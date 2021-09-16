@@ -29,7 +29,7 @@ def extract_faces(annotations, all_detections):
         org_center = np.array([(org_bbox[0]+0.5*org_bbox[2]), (org_bbox[1]+0.5*org_bbox[3])])
 
         # face detected
-        dets = all_detections[_name]
+        dets = all_detections[_name]['faces']
 
         min_norm = 10000
         final_dets = {'face_1': {}}
