@@ -25,7 +25,12 @@ def extract_faces(annotations, all_detections):
     for _name in tqdm.tqdm(all_detections.keys(), total=len(all_detections.keys()), leave=False, desc="frame"):
         # face detected
         dets = all_detections[_name]['faces']
-        if type(dets) is not dict:
+        if type(dets) is tuple:
+            _detections[_name]={
+                "faces": dets, 
+                "faces_not_found": 1, 
+                "faces_number": 0
+            }
             continue
         # annotation box
         _frame = f"{int(_name)-1:06d}"
