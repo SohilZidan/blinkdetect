@@ -46,6 +46,7 @@ def extract_faces(annotations, all_detections):
             center_tmp = np.array([(bbox_tmp[0]+bbox_tmp[2])/2, (bbox_tmp[1]+bbox_tmp[3])/2])
             _norm = np.linalg.norm(center_tmp - org_center)
             if _norm < min_norm:
+                min_norm = _norm
                 final_dets['face_1'] = dets[face_id]
         
         _detections[_name]={
