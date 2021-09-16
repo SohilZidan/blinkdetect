@@ -45,7 +45,11 @@ def extract_faces(annotations, all_detections):
         min_norm = 10000
         final_dets = {'face_1': {}}
         for face_id in dets:
-            bbox_tmp = dets[face_id]['facial_area']
+            try:
+                bbox_tmp = dets[face_id]['facial_area']
+            except Exception as e:
+                print(face_id, dets)
+                raise(e)
             center_tmp = np.array([(bbox_tmp[0]+bbox_tmp[2])/2, (bbox_tmp[1]+bbox_tmp[3])/2])
             _norm = np.linalg.norm(center_tmp - org_center)
             if _norm < min_norm:
