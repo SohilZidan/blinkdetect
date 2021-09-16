@@ -3,6 +3,11 @@ import os
 import numpy as np
 import pickle
 import tqdm
+import sys
+
+lib_dir = os.path.join(os.path.dirname(__file__), "..")
+sys.path.append(lib_dir)
+
 from blinkdetect.common import read_bbox_tag
 
 dataset_root = os.path.join(os.path.dirname(__file__), "..", "dataset")
