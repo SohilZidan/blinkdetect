@@ -22,7 +22,7 @@ def extract_faces(annotations, all_detections):
     """
     _detections = {}
 
-    for _name in tqdm.tqdm(sorted(all_detections.keys()), total=len(all_detections.keys()), leave=False, desc="frame"):
+    for _name in tqdm.tqdm(all_detections.keys(), total=len(all_detections.keys()), leave=False, desc="frame"):
         # annotation box
         _frame = int(_name)-1
         org_bbox = annotations[f"{_frame:06d}"]
