@@ -21,7 +21,7 @@ def parser():
 if __name__=="__main__":
 
     args = parser()
-    participant_id = args.participant_id
+    # participant_id = args.participant_id
     start, end = args.range
     # resume = args.resume
 
@@ -66,9 +66,9 @@ if __name__=="__main__":
         with pd.HDFStore(faceinfo_file_path_hdf5) as store:
             _data_df = store['tracked_faces_dataset_01']
     
-        assert participant_id in _data_df.index, f"tracking information for participant {participant_id} is not available"
+        assert video_name in _data_df.index, f"tracking information for participant {video_name} is not available"
 
-        _data_df = _data_df.loc[participant_id]
+        _data_df = _data_df.loc[video_name]
         # if participant_id in _data_df.index:
         #     _except_frames.extend(list(_data_df.loc[participant_id].index))
         
