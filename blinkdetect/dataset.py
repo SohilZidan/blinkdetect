@@ -10,6 +10,7 @@ class BlinkDataSet(Dataset):
       self.annotations = json.load(f)
     # 
     if transform:
+      print("normalized is:",transform)
       self.tsfrm = transforms.Compose([ToTensor(), Normalize((0,1))])
     else:
       self.tsfrm = transforms.Compose([ToTensor()])
@@ -42,7 +43,7 @@ class BlinkDataset4C(BlinkDataSet):
     else:
       duration = torch.tensor([_signals['blink_length']], dtype=torch.float32).log_()/3.1355
     # 
-    return features, label, duration, _pid, _rng # 3.1355 is the max of log(duration)
+    return features, label, duration, _pid, _rng, torch.tensor(sample['yaws']),torch.tensor(sample['pitchs']) # 3.1355 is the max of log(duration)
 
 
 
@@ -67,7 +68,7 @@ class BlinkDataset1C(BlinkDataSet):
       duration = torch.tensor([_signals['blink_length']], dtype=torch.float32)
     else:
       duration = torch.tensor([_signals['blink_length']], dtype=torch.float32).log_()/3.1355
-    return features, label, duration, _pid, _rng # 3.1355 is the max of log(duration)
+    return features, label, duration, _pid, _rng, torch.tensor(sample['yaws']),torch.tensor(sample['pitchs']) # 3.1355 is the max of log(duration)
 
 
 
@@ -96,7 +97,7 @@ class BlinkDataset2C(BlinkDataSet):
       duration = torch.tensor([_signals['blink_length']], dtype=torch.float32)
     else:
       duration = torch.tensor([_signals['blink_length']], dtype=torch.float32).log_()/3.1355
-    return features, label, duration, _pid, _rng # 3.1355 is the max of log(duration)
+    return features, label, duration, _pid, _rng, torch.tensor(sample['yaws']),torch.tensor(sample['pitchs']) # 3.1355 is the max of log(duration)
 
 
 
@@ -124,23 +125,27 @@ class Normalize(object):
   def __call__(self, sample):
 
     min_std_r=0.0
-    max_std_r= 70.57724795565552
+    # max_std_r= 70.57724795565552 old
+    max_std_r= 66.
     sample['std_r'] = (sample['std_r'] - min_std_r) / (max_std_r-min_std_r)
-    sample['std_r'] = sample['std_r'] * (self._max - self._min) - self._min
+    # sample['std_r'] = sample['std_r'] * (self._max - self._min) - self._min
 
     min_std_g= 0.0
-    max_std_g =69.65935905429274
+    # max_std_g =69.65935905429274 old
+    max_std_g =68.
     sample['std_g'] = (sample['std_g'] - min_std_g) / (max_std_g-min_std_g)
-    sample['std_g'] = sample['std_g'] * (self._max - self._min) - self._min
+    # sample['std_g'] = sample['std_g'] * (self._max - self._min) - self._min
 
     min_std_b= 0.0
-    max_std_b =72.89523973711425
+    # max_std_b =72.89523973711425 old
+    max_std_b =68.
     sample['std_b'] = (sample['std_b'] - min_std_b) / (max_std_b-min_std_b)
-    sample['std_b'] = sample['std_b'] * (self._max - self._min) - self._min
+    # sample['std_b'] = sample['std_b'] * (self._max - self._min) - self._min
 
-    min_eyelids= 0
-    max_eyelids= 10.102511040619552
+    min_eyelids= 0.0
+    # max_eyelids= 10.102511040619552 old
+    max_eyelids= 12.
     sample['eyelids_dist'] = (sample['eyelids_dist'] - min_eyelids) / (max_eyelids-min_eyelids)
-    sample['eyelids_dist'] = sample['eyelids_dist'] * (self._max - self._min) - self._min
+    # sample['eyelids_dist'] = sample['eyelids_dist'] * (self._max - self._min) - self._min
 
     return sample

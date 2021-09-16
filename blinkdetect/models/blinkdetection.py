@@ -13,15 +13,15 @@ class BlinkDetector(torch.nn.Module):
     def __init__(self, input_dim):
         super(BlinkDetector, self).__init__()
 
-        self.conv_block = self.build_conv1d_block(input_dim, 32)
+        self.conv_block = self.build_conv1d_block(input_dim, 64)
         
 
         self.regressor = Sequential(
-            self.build_mlp(32, 1),
+            self.build_mlp(64, 1),
             Sigmoid()
         )
 
-        self.classifier = self.build_mlp(32, 1)
+        self.classifier = self.build_mlp(64, 1)
 
     @staticmethod
     def build_mlp(input_dim, output_dim):
@@ -65,13 +65,13 @@ class BlinkDetector(torch.nn.Module):
         # Arch test
         return Sequential(OrderedDict([
                                     #    ('dropout_0', Dropout(0.2)),
-                                    #    ('fc_conv', Linear(input_dim, 32)),
-                                    #    ('relu_conv', ReLU()),
+                                       ('fc_conv', Linear(input_dim, 32)),
+                                       ('relu_conv', ReLU()),
                                     #    ('dropout', Dropout(0.2)),
                                     #    ('fc_1', Linear(64, 32)),
-                                    #    ('relu1', ReLU()),
+                                      #  ('relu1', ReLU()),
                                        ('dropout_out', Dropout(0.2)),
-                                       ('output', Linear(input_dim, output_dim)),]
+                                       ('output', Linear(32, output_dim)),]
                                     #    ('relu1', ELU()),
                                     #    ('dropout2', Dropout(0.2)),
                                     #    ('output', Linear(32, output_dim))]
@@ -251,10 +251,10 @@ class BlinkDetector(torch.nn.Module):
         
         # ARCH test
         return Sequential(OrderedDict([
-                          ('conv1d_1', Conv1d(input_dim, 16, 3, 1)), #28
+                          ('conv1d_1', Conv1d(input_dim, 32, 3, 1)), #28
                           ('relu_1', ReLU()),
                           
-                          ('conv1d_2', Conv1d(16, 8, 3, 1)), # 26
+                          ('conv1d_2', Conv1d(32, 16, 3, 1)), # 26
                           ('relu_2', ReLU()),
                           ('maxpool_2', MaxPool1d(3,3)), # 8
 
@@ -264,7 +264,7 @@ class BlinkDetector(torch.nn.Module):
 
                           ('flatten', Flatten()),
                         #   ('dropout', Dropout(0.2)),
-                          ('fc_conv', Linear(64, output_dim)),
+                          ('fc_conv', Linear(128, output_dim)),
                           
                           ]))
 

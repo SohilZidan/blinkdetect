@@ -68,4 +68,60 @@ def read_annotations_tag(input_file: str):
     
     
     
+
+def read_bbox_tag(input_file: str):
+    """read annotations by blinkmatters.com
+    """
+    name, ext = os.path.splitext(input_file)
+    assert ext==".tag", "file extension is not .tag"
+    # define variables 
+    
+    
+
+    detections = {}
+
+    # Using readlines() 
+    file1 = open(input_file, "r", encoding="utf-8") 
+    Lines = file1.readlines() 
+
+    # find "#start" line 
+    start_line = 1
+    for line in Lines: 
+        clean_line=line.strip()
+        if clean_line=="#start":
+            break
+        start_line += 1
+
+    # convert tag file to readable format and build "closeness_list" and "blink_list"
+    for index in range(len(Lines[start_line : -1])): # -1 since last line will be"#end"
+        
+        current_annotation=Lines[start_line+index].split(':')
+        # frame ID : 0
+        # blink ID : 1
+        # NF : 2
+        # LE_FC : 3
+        # LE_NV : 4
+        # RE_FC : 5
+        # RE_NV : 6
+        # #
+        F_X = int(current_annotation[7]) #7 -- x
+        F_Y = int(current_annotation[8]) #8 -- y
+        F_W = int(current_annotation[9]) #9 -- width
+        F_H = int(current_annotation[10]) #10 -- height
+        bbox = [F_X, F_Y, F_W, F_H]
+        # #
+        # LE_LX : 11
+        # LE_LY : 12
+        # LE_RX : 13
+        # LE_RY: 14
+        # RE_LX : 15
+        # RE_LY : 16
+        # RE_RX : 17
+        # RE_RY 18
+        detections[f"{int(current_annotation[0]):06d}"] = bbox
+    
+    file1.close()
+
+    return detections
+    
     
