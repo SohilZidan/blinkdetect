@@ -51,8 +51,9 @@ def read_annotations_tag(input_file: str):
             # it means a new blink ends so save (frame id - 1) as ending frame of the blink
             blink_end = int(current_annotation[0]) - 1
             # and construct a "blink_info" tuple to append the "blink_list"
-            blink_info = Interval(blink_start,blink_end)
-            blink_list.append(blink_info)
+            if blink_start != blink_end:
+                blink_info = Interval(blink_start,blink_end)
+                blink_list.append(blink_info)
         
         # if current annotation consist fully closed eyes, append it also to "closeness_list" 
         if current_annotation[3] == "C" and current_annotation[5] == "C":
