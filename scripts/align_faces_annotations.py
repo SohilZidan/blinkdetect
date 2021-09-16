@@ -23,33 +23,26 @@ def extract_faces(annotations, all_detections):
     _detections = {}
 
     for _name in tqdm.tqdm(all_detections.keys(), total=len(all_detections.keys()), leave=False, desc="frame"):
+        _frame = f"{int(_name)-1:06d}"
         # face detected
         dets = all_detections[_name]['faces']
-        if type(dets) is tuple:
+        if type(dets) is tuple or _frame not in annotations:
             _detections[_name]={
                 "faces": dets, 
                 "faces_not_found": 1, 
                 "faces_number": 0
             }
             continue
+
         # annotation box
-        _frame = f"{int(_name)-1:06d}"
-        if _frame not in annotations:
-            continue
         org_bbox = annotations[_frame]
         org_bbox = [int(i) for i in org_bbox]
         org_center = np.array([(org_bbox[0]+0.5*org_bbox[2]), (org_bbox[1]+0.5*org_bbox[3])])
-
-        
-
+        #
         min_norm = 10000
         final_dets = {'face_1': {}}
         for face_id in dets:
-            try:
-                bbox_tmp = dets[face_id]['facial_area']
-            except Exception as e:
-                print(face_id, dets)
-                raise(e)
+            bbox_tmp = dets[face_id]['facial_area']
             center_tmp = np.array([(bbox_tmp[0]+bbox_tmp[2])/2, (bbox_tmp[1]+bbox_tmp[3])/2])
             _norm = np.linalg.norm(center_tmp - org_center)
             if _norm < min_norm:
