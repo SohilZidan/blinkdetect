@@ -76,7 +76,8 @@ if __name__=="__main__":
         # load images
         _images = sorted(glob.glob(f"{frames_root}/*.png")) 
         start = 0
-        end = len(_images)
+        end = len(_images)-1
+        
 
 
         colors = {}
