@@ -23,6 +23,10 @@ def extract_faces(annotations, all_detections):
     _detections = {}
 
     for _name in tqdm.tqdm(all_detections.keys(), total=len(all_detections.keys()), leave=False, desc="frame"):
+        # face detected
+        dets = all_detections[_name]['faces']
+        if type(dets) is not dict:
+            continue
         # annotation box
         _frame = f"{int(_name)-1:06d}"
         if _frame not in annotations:
@@ -31,8 +35,7 @@ def extract_faces(annotations, all_detections):
         org_bbox = [int(i) for i in org_bbox]
         org_center = np.array([(org_bbox[0]+0.5*org_bbox[2]), (org_bbox[1]+0.5*org_bbox[3])])
 
-        # face detected
-        dets = all_detections[_name]['faces']
+        
 
         min_norm = 10000
         final_dets = {'face_1': {}}
