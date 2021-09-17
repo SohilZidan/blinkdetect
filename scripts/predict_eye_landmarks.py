@@ -491,10 +491,11 @@ if __name__=='__main__':
         total_range = end-start
         batch = args.batch
         _iterations = ceil(total_range/batch)
+        # find the id of the dominant face
+        face_id = _data_df.groupby('face_id').count().idxmax()[0]
 
-        _data_df = _data_df.loc[(_data_df.index.get_level_values('participant_id') == video_name) & (_data_df.index.get_level_values('face_id') == 'face_1')].reset_index(level=['participant_id', 'face_id'])
-
-
+        _data_df = _data_df.loc[(_data_df.index.get_level_values('participant_id') == video_name) & (_data_df.index.get_level_values('face_id') == face_id)].reset_index(level=['participant_id', 'face_id'])
+        
         for i in tqdm.tqdm(range(_iterations), total=_iterations, leave=False, desc="batch"):
             _batch_start = start+batch*i
             _batch_end = min(start+batch*(i+1),end)
