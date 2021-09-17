@@ -34,6 +34,7 @@ def extract_faces(annotations, all_detections):
             }
             continue
 
+
         # annotation box
         org_bbox = annotations[_frame]
         org_bbox = [int(i) for i in org_bbox]
@@ -54,7 +55,7 @@ def extract_faces(annotations, all_detections):
             "faces_not_found": all_detections[_name]['faces_not_found'], 
             "faces_number": 1
         }
-        
+
     return _detections
 
 
