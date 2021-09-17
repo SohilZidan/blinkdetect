@@ -585,9 +585,9 @@ def track_faces_batch(
         # add path and frames number
 
         # face tracking
-        _current_faces = {}
-        if _name in detections:
-            _current_faces = track_faces_v1(img_path = _img_path, dets=detections[_name]['faces'], prev_faces=_all_faces, frame_number=_name, closest=closest)
+        # _current_faces = {}
+        # if _name in detections:
+        _current_faces = track_faces_v1(img_path = _img_path, dets=detections[_name]['faces'], prev_faces=_all_faces, frame_number=_name, closest=closest)
         # TODO: best way to merge two dics
         _all_faces = {**_all_faces, **_current_faces}
         # 
