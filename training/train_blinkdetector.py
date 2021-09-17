@@ -285,4 +285,4 @@ if __name__ == '__main__':
     evaluator.add_event_handler(Events.EPOCH_COMPLETED, best_model_save, {'textcnn': network})
 
     #  RUN
-    trainer.run(dataloaders['train'], max_epochs=5)
+    trainer.run(dataloaders['train'], max_epochs=EPOCH)
