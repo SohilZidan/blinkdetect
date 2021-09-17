@@ -4,37 +4,24 @@
 import argparse
 import os
 import logging
-import shutil
-import random
-from tqdm import tqdm
-import paramiko
-import numpy as np
+import pprint
 
 import torch
 torch.multiprocessing.set_sharing_strategy('file_system')
 from torch.nn import MSELoss, BCEWithLogitsLoss, Sigmoid
 
-from PIL import Image
-import glob
+import ignite
+from ignite.engine import Events, Engine
+from ignite.metrics import Accuracy, RunningAverage, Precision, Recall, ClassificationReport, ConfusionMatrix
+from ignite.handlers import EarlyStopping, ModelCheckpoint
+from ignite.contrib.handlers import ProgressBar
+
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from blinkdetect.models.blinkdetection import BlinkDetector
 from blinkdetect.dataset import BlinkDataset1C, BlinkDataset2C, BlinkDataset4C
 
-from sklearn.metrics import confusion_matrix
-from sklearn.metrics import classification_report
-
-from matplotlib import pyplot as plt
-
-def make_gif(frame_folder, name):
-    frames = [Image.open(image) for image in sorted(glob.glob(f"{frame_folder}/*.png"))]
-    # frames = sorted(frames)
-    frame_one = frames[0]
-    frame_one.save(os.path.join(frame_folder,f"{name}.gif"), format="GIF", append_images=frames,
-               save_all=True, duration=50, loop=0)
-    for frame_path in glob.glob(f"{frame_folder}/*.png"):
-          os.remove(frame_path)
 
 def_anns_file = os.path.join(os.path.dirname(__file__),"..", "dataset","augmented_signals", "annotations.json")
 checkpoints_folder = os.path.join(os.path.dirname(__file__), "..", "checkpoints")
@@ -53,14 +40,11 @@ def parser():
     return argparser.parse_args()
 
 if __name__ == '__main__':
-          
-    args = parser()
 
-    # 
+    args = parser()
     BATCH_SIZE = args.batch
     EPOCH = args.epoch
-    
-    
+
     if args.dataset_path == "":
           _name, _ = os.path.basename(args.annotation_file).split(".")
           _, _version = _name.split("-")
@@ -78,7 +62,7 @@ if __name__ == '__main__':
 
     # Fix random seed
     torch.manual_seed(192020)
-    random.seed(192020)
+    ignite.utils.manual_seed(192020)
     
 
     """
@@ -132,398 +116,174 @@ if __name__ == '__main__':
                    'test': test_dataset_loader, "dataset": all_dataset_loader}
 
 
-    
     # Initialize the MLP
     network = BlinkDetector(num_chan).to(device)
     pytorch_total_params = sum(p.numel() for p in network.parameters())
     print("number of model parameters:", pytorch_total_params)
     logging.info(f"number of model parameters: {pytorch_total_params}")
-
     logging.info("network architecture")
     logging.info(network)
-    # exit()
-    # 
-    # Define task dependent log_variance
-    # 
-    # log_var_a = torch.zeros((1,), requires_grad=True)
-    # log_var_b = torch.zeros((1,), requires_grad=True)
-    # Initialized standard deviations (ground truth is 10 and 1):
-    # std_1 = torch.exp(log_var_a)**0.5
-    # std_2 = torch.exp(log_var_b)**0.5
-    # get all parameters (model parameters + task dependent log variances)
-    # params = ([p for p in network.parameters()] + [log_var_a] + [log_var_b])
 
     # Define the loss function and optimizer
     cls_loss = BCEWithLogitsLoss()
     reg_loss = MSELoss()
     sig = Sigmoid()
-    optimizer = torch.optim.Adam(network.parameters(), lr=1e-4,  amsgrad=True)
-    # optimizer = torch.optim.AdamW(network.parameters(), lr=1e-4, amsgrad=True)
-    # optimizer = torch.optim.AdamW(network.parameters(), lr=1e-4 , amsgrad=True)
-    # optimizer_param_groups = optimizer.state_dict()['param_groups']
-    # print(optimizer.state_dict())
-    # logging.info(optimizer)
-    # exit()
-    # print(optimizer)
-    
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    # optimizer = torch.optim.Adam(params, lr=1e-4)
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    optimizer = torch.optim.Adam(network.parameters(), lr=1e-4, weight_decay=1e-5, amsgrad=True)
 
-
-    epochs = tqdm(range(EPOCH), desc="Epochs")
-    training_progress = tqdm(total=len(train_dataset_loader),
-                             desc="Training progress")
-    validation_progress = tqdm(total=len(valid_dataset_loader),
-                               desc="Validation progress")
-    
-    training_losses = []
-    validation_losses = []
-    # Training loop
-    for epoch in epochs:
-      training_progress.reset()
-      validation_progress.reset()
-
-      current_loss = 0.0
-      avg_loss = 0.0
-
-      for data, target, duration, _pid, _rng, _yaw, _pitch in dataloaders['train']:
-
-        data, target, duration = data.to(device), target.to(device), duration.to(device)
-
+    # Training Process function
+    def train_step(trainer, batch):
+        network.train()
         optimizer.zero_grad()
+        data, target, duration, _pid, _rng, _yaw, _pitch = batch
+        data, target, duration = data.to(device), target.to(device), duration.to(device)
         pred_target, pred_duration = network(data)
-
-        # Compute loss
-        loss = cls_loss(pred_target, target.type_as(pred_target)) + reg_loss(pred_duration, duration.type_as(pred_duration))
-        # loss = cls_loss(pred_target, target.type_as(pred_target)) + reg_loss(sig(pred_duration), duration.type_as(pred_duration))
-
-        # loss_c = cls_loss(pred_target, target.type_as(pred_target))
-        # loss_r = reg_loss(sig(pred_duration), duration.type_as(pred_duration))
-        # loss = torch.sqrt(loss_c**2+ loss_r**2)
-
-        # loss = criterion_0([cls_loss(pred_target, target.type_as(pred_target)), reg_loss(sig(pred_duration), duration.type_as(pred_duration))], [log_var_a, log_var_b])
-
-          
+        _loss1 = cls_loss(pred_target, target.type_as(pred_target))
+        _loss2 = reg_loss(pred_duration, duration.type_as(pred_duration))
+        loss = _loss1 + _loss2
         loss.backward()
-
         optimizer.step()
-        # Print statistic
-        current_loss += loss.item()
-        training_progress.update()
-      
-  
+        return loss.item()
 
-      avg_loss = current_loss*BATCH_SIZE / len(train_dataset)
-      training_losses.append(avg_loss)
-      training_progress.set_postfix(average_loss=avg_loss)
-        
+    # Evaluation Process function
+    def eval_step(trainer, batch):
+        network.eval()
+        with torch.no_grad():
+            data, target, duration, _pid, _rng, _yaw, _pitch = batch
+            data, target, duration = data.to(device), target.to(device), duration.to(device)
+            pred_target, pred_duration = network(data)
+            _loss1 = cls_loss(pred_target, target.type_as(pred_target))
+            _loss2 = reg_loss(pred_duration, duration.type_as(pred_duration))
+            loss = _loss1 + _loss2
+            # print(loss.item(), pred_target, pred_duration, target, duration)
+            return {
+                "combined": loss.item(),
+                "cls_loss": _loss1.item(),
+                "reg_loss": _loss2.mul(3.1355).exp_().item(),
+                "preds": [pred_target, pred_duration],
+                "GT": [target, duration]
+            }
+    
+    # Engines
+    trainer = Engine(train_step)
+    train_evaluator = Engine(eval_step)
+    evaluator = Engine(eval_step)
+    tester = Engine(eval_step)
 
-      with torch.no_grad():
-        val_loss = 0.0
-        avg_val_loss = 0.0
-        for data, target, duration,_,__,  _yaw, _pitch in dataloaders['val']:
-          data, target, duration= data.to(device), target.to(device), duration.to(device)
-          pred_target, pred_duration = network(data)
-          val_loss += cls_loss(pred_target, target.type_as(pred_target)) + reg_loss(pred_duration, duration.type_as(pred_duration))
-          # val_loss += cls_loss(pred_target, target.type_as(pred_target)) + reg_loss(sig(pred_duration), duration.type_as(pred_duration))
-          # loss_c = cls_loss(pred_target, target.type_as(pred_target))
-          # loss_r = reg_loss(sig(pred_duration), duration.type_as(pred_duration))
+    #
+    RunningAverage(output_transform=lambda x: x).attach(trainer, 'loss')
+    RunningAverage(output_transform=lambda x: x['combined']).attach(evaluator, 'loss')
+    RunningAverage(output_transform=lambda x: x['combined']).attach(tester, 'loss')
 
-          # val_loss += torch.sqrt(loss_c**2+ loss_r**2)
+    def class_transform(output):
+        y_pred, _ = output["preds"]
+        y, _ = output["GT"]
+        y_pred = torch.sigmoid(y_pred)
+        y_pred = torch.round(y_pred).type_as(y)
+        return y_pred, y
 
-          # val_loss += criterion([sig(1/(log_var_a.to(device)**2)*pred_target), pred_duration], [target, duration], [log_var_a, log_var_b])
-          # val_loss += criterion_0([cls_loss(pred_target, target.type_as(pred_target)), reg_loss(sig(pred_duration), duration.type_as(pred_duration))], [log_var_a, log_var_b])
-          # val_loss += criterion_1([cls_loss(pred_target, target.type_as(pred_target)), reg_loss(pred_duration, duration.type_as(pred_duration))], [log_var_a, log_var_b])
-          validation_progress.update()
-      avg_val_loss = val_loss.item()*BATCH_SIZE / len(valid_dataset)
-      validation_losses.append(avg_val_loss)
-      validation_progress.set_postfix(valid_loss=avg_val_loss)
-        
-    os.makedirs(checkpoints_folder, exist_ok=True)
-    model_PATH = os.path.join(checkpoints_folder, f"{args.prefix}-{args.normalized}-{args.channels}-{EPOCH}.pth")
-    torch.save(network.state_dict(), model_PATH)
+    def binary_one_hot_output_transform(output):
+        y_pred, y = output["preds"][0], output["GT"][0]
+        y_pred = torch.sigmoid(y_pred).round().long()
+        y_pred = ignite.utils.to_onehot(y_pred, 2)
+        y = y.long()
+        return y_pred, y
 
+    #  Evaluator metrics
+    ClassificationReport(output_transform=binary_one_hot_output_transform, output_dict=True).attach(evaluator, "cr")
+    ConfusionMatrix(2, output_transform=binary_one_hot_output_transform).attach(evaluator, "cr")
+    Accuracy(output_transform=class_transform).attach(evaluator, 'accuracy')
+    #
+    precision = Precision(output_transform=class_transform,average=False)
+    recall = Recall(output_transform=class_transform, average=False)
+    F1 = (precision * recall * 2 / (precision + recall)).mean()
+    #
+    precision.attach(evaluator, 'precision')
+    recall.attach(evaluator, 'recall')
+    F1.attach(evaluator, 'F1')
 
-    # testing
-    y_pred_list = []
-    y_test = []
-    duration_MSE = 0
-    classification_cls = 0
-    _pids = []
-    _rngs = []
-    _yaws = []
-    _pitchs = []
+    #  Trainer evaluator metrics
+    ClassificationReport(output_transform=binary_one_hot_output_transform, output_dict=True).attach(train_evaluator, "cr")
+    ConfusionMatrix(2, output_transform=binary_one_hot_output_transform).attach(train_evaluator, "cr")
     # 
-    testing_progress = tqdm(total=len(test_dataset_loader),
-                               desc="Testing progress")
-    # testing_progress.reset()
-    with torch.no_grad():
-      
-      test_loss = 0.0
-      avg_test_loss = 0.0
-      for data, target, duration, _pid, _rng, _yaw, _pitch in dataloaders['test']:
-        data, target, duration = data.to(device), target.to(device), duration.to(device)
-        pred_target, pred_duration = network(data)
-        # 
-        y_test_pred = torch.sigmoid(pred_target)
-        y_pred_tag = torch.round(y_test_pred).type_as(target)
-        y_pred_list.extend(y_pred_tag.cpu().numpy())
-        y_test.extend(target.cpu().numpy())
-        # # # # # # # # # # #
-        _pids.extend(_pid)
-        _rngs.extend(_rng)
-        _yaws.extend(_yaw.numpy())
-        _pitchs.extend(_pitch.numpy())
-        # # # # # # # # # # #
-        duration_MSE += reg_loss(pred_duration, duration.type_as(pred_duration)).mul(3.1355).exp_()
-        classification_cls += cls_loss(pred_target, target.type_as(pred_target))
-        
-        test_loss += cls_loss(pred_target, target.type_as(pred_target)) + reg_loss(pred_duration, duration.type_as(pred_duration))
-        # test_loss += cls_loss(pred_target, target.type_as(pred_target)) + reg_loss(sig(pred_duration), duration.type_as(pred_duration))
-        # loss_c = cls_loss(pred_target, target.type_as(pred_target))
-        # loss_r = reg_loss(sig(pred_duration), duration.type_as(pred_duration))
-
-        # test_loss += torch.sqrt(loss_c**2+ loss_r**2)
-        # test_loss += criterion([sig(1/(log_var_a.to(device)**2)*pred_target), pred_duration], [target, duration], [log_var_a, log_var_b])
-        # test_loss += criterion_0([cls_loss(pred_target, target.type_as(pred_target)), reg_loss(sig(pred_duration), duration.type_as(pred_duration))], [log_var_a, log_var_b])
-        # test_loss += criterion_1([cls_loss(pred_target, target.type_as(pred_target)), reg_loss(pred_duration, duration.type_as(pred_duration))], [log_var_a, log_var_b])
-        testing_progress.update()
-    avg_test_loss = test_loss.item()*BATCH_SIZE / len(test_dataset)
-    avg_duration_MSE = duration_MSE.item()*BATCH_SIZE / len(test_dataset)
-    avg_classification_cls = classification_cls.item()*BATCH_SIZE / len(test_dataset)
-    testing_progress.set_postfix(testing_loss=avg_test_loss)
-    # print(_pitchs)
-    # exit()
-
-    y_pred_list = [a.squeeze().tolist() for a in y_pred_list]
-    y_list = [a.squeeze().tolist() for a in y_test]
+    Accuracy(output_transform=class_transform).attach(train_evaluator, 'accuracy')
     # 
-    tn, fp, fn, tp = confusion_matrix(y_list, y_pred_list).ravel()
-
-    # # # # # # # #
-    # all dataset #
-    all_y_pred_list = []
-    all_y_test = []
-    all_pids = []
-    all_rngs = []
-    duration_MSE = 0
-    classification_cls = 0
+    precision = Precision(output_transform=class_transform,average=False)
+    recall = Recall(output_transform=class_transform, average=False)
+    F1 = (precision * recall * 2 / (precision + recall)).mean()
     # 
-    dataset_progress = tqdm(total=len(all_dataset_loader),
-                               desc="All dataset progress")
-    # testing_progress.reset()
-    with torch.no_grad():
-      
-      test_loss = 0.0
-      avg_test_loss = 0.0
-      for data, target, duration,_pid, _rng, _, __ in dataloaders['dataset']:
-        data, target, duration = data.to(device), target.to(device), duration.to(device)
-        pred_target, pred_duration = network(data)
-        # 
-        all_pids.extend(_pid)
-        all_rngs.extend(_rng)
-        # 
-        y_test_pred = torch.sigmoid(pred_target)
-        y_pred_tag = torch.round(y_test_pred).type_as(target)
-        all_y_pred_list.extend(y_pred_tag.cpu().numpy())
-        all_y_test.extend(target.cpu().numpy())
-        # 
-        duration_MSE += reg_loss(pred_duration, duration.type_as(pred_duration)).mul(3.1355).exp_()
-        test_loss += cls_loss(pred_target, target.type_as(pred_target)) + reg_loss(pred_duration, duration.type_as(pred_duration))
-        # test_loss += criterion([sig(1/(log_var_a.to(device)**2)*pred_target), pred_duration], [target, duration], [log_var_a, log_var_b])
-        # test_loss += criterion_0([cls_loss(pred_target, target.type_as(pred_target)), reg_loss(sig(pred_duration), duration.type_as(pred_duration))], [log_var_a, log_var_b])
-        # test_loss += torch.mean(cls_loss(pred_target, target.type_as(pred_target)) + reg_loss(sig(pred_duration), duration.type_as(pred_duration)))
-        # loss_c = 
-        classification_cls += cls_loss(pred_target, target.type_as(pred_target))
-        # loss_r = reg_loss(sig(pred_duration), duration.type_as(pred_duration))
+    precision.attach(train_evaluator, 'precision')
+    recall.attach(train_evaluator, 'recall')
+    F1.attach(train_evaluator, 'F1')
 
-        # test_loss += torch.sqrt(loss_c**2+ loss_r**2)
-        # loss_c = cls_loss(pred_target, target.type_as(pred_target))
-        # loss_r = reg_loss(sig(pred_duration), duration.type_as(pred_duration))
-
-        # test_loss += torch.norm(torch.cat((loss_c, loss_r)))
-        dataset_progress.update()
-    avg_test_loss = test_loss.item()*BATCH_SIZE / len(dataset)
-    avg_dataset_duration_MSE = duration_MSE.item()*BATCH_SIZE / len(dataset)
-    avg_dataset_classification_cls = classification_cls.item()*BATCH_SIZE / len(dataset)
-    dataset_progress.set_postfix(all_loss=avg_test_loss)
-
-    all_y_pred_list = [a.squeeze().tolist() for a in all_y_pred_list]
-    all_y_test = [a.squeeze().tolist() for a in all_y_test]
-
-    _tn, _fp, _fn, _tp = confusion_matrix(all_y_test, all_y_pred_list).ravel()
-
-    # closing progress bars
-    
-    epochs.close()
-    training_progress.close()
-    validation_progress.close()
-    testing_progress.close()
-    dataset_progress.close()
-    
-    
-    # print()
-    # print()
+    # Tester Metrics
+    ClassificationReport(output_transform=binary_one_hot_output_transform, output_dict=True).attach(tester, "cr")
+    ConfusionMatrix(2, output_transform=binary_one_hot_output_transform).attach(tester, "cr")
     # 
-    
-    # print(y_pred_list)
-    # exit()
-    # y_pred_list = [item for sublist in y_pred_list for item in sublist]
-    # y_list = [item for sublist in y_list for item in sublist]
+    Accuracy(output_transform=class_transform).attach(tester, 'accuracy')
+    # 
+    precision = Precision(output_transform=class_transform,average=False)
+    recall = Recall(output_transform=class_transform, average=False)
+    F1 = (precision * recall * 2 / (precision + recall)).mean()
+    # 
+    precision.attach(tester, 'precision')
+    recall.attach(tester, 'recall')
+    F1.attach(tester, 'F1')
 
+    #  ProgressBar
+    pbar = ProgressBar(persist=True, bar_format="")
+    pbar.attach(trainer, ['loss'])
 
-    
-    def draw_angles_dist(test_yaw_pitch_rnb_fp_fn, test_yaw_pitch_rnb_tp_tn, angles_dist_file):
-          # import matplotlib.pyplot as plt
-          # fig = plt.figure()
-          # ax = fig.add_subplot()#projection='3d')
-          _pids,_,__,_rngs, _yaw_means, _yaw_stds, _pitch_means, _pitch_stds = test_yaw_pitch_rnb_tp_tn
-          plt.scatter(_yaw_means, _pitch_means, s=8, marker="o", c='b', label=f"TP+TN: {len(_pitch_stds)}")
+    #  Training Results
+    @trainer.on(Events.COMPLETED)
+    def log_training_results(trainer):
+        train_evaluator.run(dataloaders['val'])
+        metrics = train_evaluator.state.metrics
+        pbar.log_message(
+        "Training Results - Epoch: {} \nMetrics\n{}"
+        .format(trainer.state.epoch, pprint.pformat(metrics)))
 
-          _pids,_,__,_rngs, _yaw_means, _yaw_stds, _pitch_means, _pitch_stds = test_yaw_pitch_rnb_fp_fn
-          plt.scatter(_yaw_means, _pitch_means, s=10, marker="^", c="r",  label=f"FP+FN: {len(_pitch_stds)}")
-          
+    #  Validation Results
+    def log_validation_results(engine):
+        evaluator.run(dataloaders['val'])
+        metrics = evaluator.state.metrics
+        pbar.log_message(
+            "Validation Results - Epoch: {} \nMetrics\n{}"
+            .format(engine.state.epoch, pprint.pformat(metrics)))
+        pbar.n = pbar.last_print_n = 0
 
-          # for i, txt in enumerate(_rngs):
-          #       plt.annotate(f"{_pids[i]}-{txt}", (_yaw_means[i], _pitch_means[i]))
+    #  Testing Results
+    def log_testing_results(engine):
+        tester.run(dataloaders['test'])
+        metrics = tester.state.metrics
+        pbar.log_message("-------------------")
+        pbar.log_message(
+            "Validation Results - Epoch: {} \nMetrics\n{}"
+            .format(engine.state.epoch, pprint.pformat(metrics)))
+        pbar.n = pbar.last_print_n = 0
 
-          plt.axvline(0,c="k")
-          plt.axhline(0,c="k")
+    trainer.add_event_handler(Events.EPOCH_COMPLETED, log_validation_results)
+    trainer.add_event_handler(Events.COMPLETED, log_testing_results)
 
+    # EarlyStopping
+    def score_function(engine):
+        val_loss = engine.state.output['combined']
+        return -val_loss
+    handler = EarlyStopping(patience=5, score_function=score_function, trainer=trainer)
+    evaluator.add_event_handler(Events.COMPLETED, handler)
 
-          plt.xlabel("yaw")
-          plt.ylabel("pitch")
-          plt.legend()
-          plt.savefig(angles_dist_file, dpi=300, bbox_inches='tight')
-          plt.close()
-          
-    all_combined = [(x,x_pred, _id, _rng) for x, x_pred, _id, _rng in list(zip(all_y_test, all_y_pred_list, all_pids, all_rngs)) if x!=x_pred]
-    test_combined = [(x,x_pred, _id, _rng, (_yaw[14]+_yaw[15])/2, (_pitch[14]+_pitch[15])/2) for x, x_pred, _id, _rng,_yaw, _pitch in list(zip(y_list, y_pred_list, _pids, _rngs, _yaws, _pitchs)) if x!=x_pred]
-    # fp+fn
-    # print(type(_pitchs[0]), _pitchs[0], _pitchs[0].shape)
-    # exit()
-    test_yaw_pitch_rnb_fp_fn = [(_pid, x,x_pred, _rng, (_yaw[14]+_yaw[15])/2, np.std(_yaw), (_pitch[14]+_pitch[15])/2, np.std(_pitch)) for _pid, x, x_pred, _rng, _yaw,_pitch in list(zip(_pids,y_list, y_pred_list, _rngs, _yaws, _pitchs)) if x!=x_pred]
-    # for i,t in enumerate(_yaws):
-    #       if np.mean(t) > 45:
-    #         print(y_list[i], y_pred_list[i], t.shape, np.mean(t), t)
-    # exit()
-    test_yaw_pitch_rnb_fp_fn = list(zip(*test_yaw_pitch_rnb_fp_fn))
-    # tp+tn
-    test_yaw_pitch_rnb_tp_tn = [(_pid, x,x_pred, _rng, (_yaw[14]+_yaw[15])/2, np.std(_yaw), (_pitch[14]+_pitch[15])/2, np.std(_pitch)) for _pid, x, x_pred, _rng, _yaw,_pitch in list(zip(_pids, y_list, y_pred_list, _rngs, _yaws, _pitchs)) if x==x_pred]
-    test_yaw_pitch_rnb_tp_tn = list(zip(*test_yaw_pitch_rnb_tp_tn))
+    # ModelCheckpoint
+    checkpointer = ModelCheckpoint('checkpoint', 'testcnn', save_interval=1, n_saved=2, create_dir=True, save_as_state_dict=True, require_empty=False)
+    best_model_save = ModelCheckpoint(
+        'best_model', 'textcnn', n_saved=1,
+        create_dir=True, save_as_state_dict=True,
+        score_function=score_function, require_empty=False)
 
-    angles_dist_file = os.path.join(dataset_path, f"[fp+fn]dist-{args.prefix}-{args.normalized}-{args.channels}-{BATCH_SIZE}-{EPOCH}.png")
-    draw_angles_dist(test_yaw_pitch_rnb_fp_fn, test_yaw_pitch_rnb_tp_tn,angles_dist_file)
+    trainer.add_event_handler(Events.EPOCH_COMPLETED, checkpointer, {'textcnn': network})
+    evaluator.add_event_handler(Events.EPOCH_COMPLETED, best_model_save, {'textcnn': network})
 
-    
-    # Testing
-    print("testing performace")
-    logging.info("testing performace")
-    print(f"duration mse: {avg_duration_MSE}")
-    logging.info(f"duration mse: {avg_duration_MSE}")
-    print(f"classifier loss: {avg_classification_cls}")
-    logging.info(f"classifier loss: {avg_classification_cls}")
-    print(f"tn: {tn}, fp: {fp}, fn: {fn}, tp: {tp}")
-    logging.info(f"tn: {tn}, fp: {fp}, fn: {fn}, tp: {tp}")
-    print(classification_report(y_list, y_pred_list))
-    logging.info(classification_report(y_list, y_pred_list))
-    # logging.info("FP+FN")
-    # logging.info(test_combined)
+    #  RUN
+    trainer.run(dataloaders['train'], max_epochs=5)
 
-    print("overall performace")
-    logging.info("overall performace")
-    print(f"duration mse: {avg_dataset_duration_MSE}")
-    logging.info(f"duration mse: {avg_dataset_duration_MSE}")
-    print(f"classifier loss: {avg_dataset_classification_cls}")
-    logging.info(f"classifier loss: {avg_dataset_classification_cls}")
-    print(f"tn: {_tn}, fp: {_fp}, fn: {_fn}, tp: {_tp}")
-    logging.info(f"tn: {_tn}, fp: {_fp}, fn: {_fn}, tp: {_tp}")
-    print(classification_report(all_y_test, all_y_pred_list))
-    logging.info(classification_report(all_y_test, all_y_pred_list))
-    # logging.info("FP+FN")
-    # logging.info(all_combined)
-    # print(all_y_test, all_y_pred_list)
-
-    
-    plt.plot(training_losses, 'r', label="training loss")
-    plt.plot(validation_losses, 'b',  label="validation loss")
-    plt.legend()
-    fig_out_file = os.path.join(dataset_path, f"{args.prefix}-{args.normalized}-{args.channels}-{BATCH_SIZE}-{EPOCH}.png")
-    plt.savefig(fig_out_file, dpi=300, bbox_inches='tight')
-    plt.close()
-
-    # # # # # # #
-    fp_fn = os.path.join(dataset_path, f"fp+fn-{args.prefix}-{args.normalized}-{args.channels}-{BATCH_SIZE}-{EPOCH}")
-    os.makedirs(fp_fn, exist_ok=True)
-
-    # # # # # # # # # # # # # # # # # # # # # # # 
-    
-    if args.generate_fnfp_plots:
-      paramiko.util.log_to_file('logfile.log')
-      host = "nipg11.inf.elte.hu"
-      port = 10113
-      transport = paramiko.Transport((host, port))
-      password = "S9hiLLai*"
-      username = "zidan"
-      transport.connect(username = username, password = password)
-
-      sftp = paramiko.SFTPClient.from_transport(transport)
-      # print(type(sftp), sftp.getcwd())
-      # print(sftp.get_channel())
-      # print(sftp.listdir())
-      # # # # # # # # # # # # # # # # # # # # # # # 
-
-      # TEST
-      test_fp_fn = os.path.join(fp_fn, "test")
-      dataset_path = os.path.dirname(dataset_path)
-      dataset_path = os.path.join(dataset_path, "plots")
-      sample_number = 1
-      if len(test_combined) > 100:
-          test_combined = random.sample(test_combined, 100)
-      for _actual, _prediction, _pid, _rng, _yaw, _pitch in tqdm(test_combined, total=len(test_combined), desc="test"):
-          # 
-          _start, _stop = _rng.split("-")
-          _to = f"{test_fp_fn}/{_actual}/{_pid}_sample_{sample_number}_y{_yaw:.0f}_p{_pitch:.0f}"
-          if not os.path.exists(_to):
-            os.makedirs(_to)
-          
-          # 
-          for i in range(int(_start)-5, int(_stop)+5):
-            if i < 0: continue
-            _from = f"./Blinking/dataset/BlinkingValidationSetVideos/{_pid}/frames/{i:06}.png"
-            _to1 = f"{_to}/{i:06}.png"
-            sftp.get(_from, _to1)
-            # shutil.copyfile(_from, _to)
-          make_gif(_to,f"{_pid}_[{_rng}]_{_actual}")
-          shutil.copyfile(f"{dataset_path}/{_pid}_[{_rng}]_{_actual}.png", f"{_to}/{_pid}_[{_rng}]_{_actual}.png")
-          sample_number+=1
-
-      # ALL
-      # test_fp_fn = os.path.join(fp_fn, "all")
-      # dataset_path = os.path.dirname(dataset_path)
-      # dataset_path = os.path.join(dataset_path, "plots")
-      # if len(all_combined) > 100:
-      #     all_combined = random.sample(all_combined, 100)
-      # for _actual, _prediction, _pid, _rng in tqdm(all_combined, total=len(all_combined), desc="all"):
-      #     # 
-      #     _start, _stop = _rng.split("-")
-      #     _to = f"{test_fp_fn}/{_actual}/{_pid}_sample_{sample_number}"
-      #     if not os.path.exists(_to):
-      #       os.makedirs(_to)
-      #     shutil.copyfile(f"{dataset_path}/{_pid}_[{_rng}]_{_actual}.png", f"{_to}/{_pid}_[{_rng}]_{_actual}.png")
-      #     # 
-      #     for i in range(int(_start)-5, int(_stop)+5):
-      #       if i < 0: continue
-      #       _from = f"./Blinking/dataset/BlinkingValidationSetVideos/{_pid}/frames/{i:06}.png"
-      #       _to1 = f"{_to}/{i:06}.png"
-      #       sftp.get(_from, _to1)
-      #       # shutil.copyfile(_from, _to)
-      #     sample_number+=1
-
-      sftp.close()
-      transport.close()
-    # Found standard deviations (ground truth is 10 and 1):
-    # std_1 = torch.exp(log_var_a)**0.5
-    # std_2 = torch.exp(log_var_b)**0.5
-    # print([std_1.item(), std_2.item()])
+    # os.makedirs(checkpoints_folder, exist_ok=True)
+    # model_PATH = os.path.join(checkpoints_folder, f"{args.prefix}-{args.normalized}-{args.channels}-{EPOCH}.pth")
+    # torch.save(network.state_dict(), model_PATH)
