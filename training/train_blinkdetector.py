@@ -7,11 +7,15 @@ import logging
 import shutil
 import random
 from tqdm import tqdm
-import paramiko 
+import paramiko
+import numpy as np
 
 import torch
+torch.multiprocessing.set_sharing_strategy('file_system')
 from torch.nn import MSELoss, BCEWithLogitsLoss, Sigmoid
 
+from PIL import Image
+import glob
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
@@ -23,13 +27,22 @@ from sklearn.metrics import classification_report
 
 from matplotlib import pyplot as plt
 
+def make_gif(frame_folder, name):
+    frames = [Image.open(image) for image in sorted(glob.glob(f"{frame_folder}/*.png"))]
+    # frames = sorted(frames)
+    frame_one = frames[0]
+    frame_one.save(os.path.join(frame_folder,f"{name}.gif"), format="GIF", append_images=frames,
+               save_all=True, duration=50, loop=0)
+    for frame_path in glob.glob(f"{frame_folder}/*.png"):
+          os.remove(frame_path)
 
-def_anns_file = os.path.join(os.path.dirname(__file__), "dataset","augmented_signals", "annotations.json")
+def_anns_file = os.path.join(os.path.dirname(__file__),"..", "dataset","augmented_signals", "annotations.json")
+checkpoints_folder = os.path.join(os.path.dirname(__file__), "..", "checkpoints")
 
 def parser():
     argparser = argparse.ArgumentParser()
     argparser.add_argument("--annotation_file", default=def_anns_file)
-    argparser.add_argument("--dataset_path", default="")
+    argparser.add_argument("--dataset_path", required=True)
     argparser.add_argument("--prefix", required=True)
     argparser.add_argument("--channels", required=True, choices=['1C', '2C', '4C'])
     argparser.add_argument("--batch", type=int ,default=4)
@@ -65,6 +78,7 @@ if __name__ == '__main__':
 
     # Fix random seed
     torch.manual_seed(192020)
+    random.seed(192020)
     
 
     """
@@ -143,7 +157,15 @@ if __name__ == '__main__':
     cls_loss = BCEWithLogitsLoss()
     reg_loss = MSELoss()
     sig = Sigmoid()
-    optimizer = torch.optim.Adam(network.parameters(), lr=1e-4)
+    optimizer = torch.optim.Adam(network.parameters(), lr=1e-4,  amsgrad=True)
+    # optimizer = torch.optim.AdamW(network.parameters(), lr=1e-4, amsgrad=True)
+    # optimizer = torch.optim.AdamW(network.parameters(), lr=1e-4 , amsgrad=True)
+    # optimizer_param_groups = optimizer.state_dict()['param_groups']
+    # print(optimizer.state_dict())
+    # logging.info(optimizer)
+    # exit()
+    # print(optimizer)
+    
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # optimizer = torch.optim.Adam(params, lr=1e-4)
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -165,7 +187,7 @@ if __name__ == '__main__':
       current_loss = 0.0
       avg_loss = 0.0
 
-      for data, target, duration,_,__ in dataloaders['train']:
+      for data, target, duration, _pid, _rng, _yaw, _pitch in dataloaders['train']:
 
         data, target, duration = data.to(device), target.to(device), duration.to(device)
 
@@ -200,7 +222,7 @@ if __name__ == '__main__':
       with torch.no_grad():
         val_loss = 0.0
         avg_val_loss = 0.0
-        for data, target, duration,_,__ in dataloaders['val']:
+        for data, target, duration,_,__,  _yaw, _pitch in dataloaders['val']:
           data, target, duration= data.to(device), target.to(device), duration.to(device)
           pred_target, pred_duration = network(data)
           val_loss += cls_loss(pred_target, target.type_as(pred_target)) + reg_loss(pred_duration, duration.type_as(pred_duration))
@@ -218,9 +240,9 @@ if __name__ == '__main__':
       validation_losses.append(avg_val_loss)
       validation_progress.set_postfix(valid_loss=avg_val_loss)
         
-    
-      
-    
+    os.makedirs(checkpoints_folder, exist_ok=True)
+    model_PATH = os.path.join(checkpoints_folder, f"{args.prefix}-{args.normalized}-{args.channels}-{EPOCH}.pth")
+    torch.save(network.state_dict(), model_PATH)
 
 
     # testing
@@ -230,6 +252,8 @@ if __name__ == '__main__':
     classification_cls = 0
     _pids = []
     _rngs = []
+    _yaws = []
+    _pitchs = []
     # 
     testing_progress = tqdm(total=len(test_dataset_loader),
                                desc="Testing progress")
@@ -238,7 +262,7 @@ if __name__ == '__main__':
       
       test_loss = 0.0
       avg_test_loss = 0.0
-      for data, target, duration, _pid, _rng in dataloaders['test']:
+      for data, target, duration, _pid, _rng, _yaw, _pitch in dataloaders['test']:
         data, target, duration = data.to(device), target.to(device), duration.to(device)
         pred_target, pred_duration = network(data)
         # 
@@ -249,8 +273,10 @@ if __name__ == '__main__':
         # # # # # # # # # # #
         _pids.extend(_pid)
         _rngs.extend(_rng)
+        _yaws.extend(_yaw.numpy())
+        _pitchs.extend(_pitch.numpy())
         # # # # # # # # # # #
-        duration_MSE += reg_loss(sig(pred_duration), duration.type_as(pred_duration)).mul(3.1355).exp_()
+        duration_MSE += reg_loss(pred_duration, duration.type_as(pred_duration)).mul(3.1355).exp_()
         classification_cls += cls_loss(pred_target, target.type_as(pred_target))
         
         test_loss += cls_loss(pred_target, target.type_as(pred_target)) + reg_loss(pred_duration, duration.type_as(pred_duration))
@@ -267,6 +293,8 @@ if __name__ == '__main__':
     avg_duration_MSE = duration_MSE.item()*BATCH_SIZE / len(test_dataset)
     avg_classification_cls = classification_cls.item()*BATCH_SIZE / len(test_dataset)
     testing_progress.set_postfix(testing_loss=avg_test_loss)
+    # print(_pitchs)
+    # exit()
 
     y_pred_list = [a.squeeze().tolist() for a in y_pred_list]
     y_list = [a.squeeze().tolist() for a in y_test]
@@ -289,7 +317,7 @@ if __name__ == '__main__':
       
       test_loss = 0.0
       avg_test_loss = 0.0
-      for data, target, duration,_pid, _rng in dataloaders['dataset']:
+      for data, target, duration,_pid, _rng, _, __ in dataloaders['dataset']:
         data, target, duration = data.to(device), target.to(device), duration.to(device)
         pred_target, pred_duration = network(data)
         # 
@@ -301,7 +329,7 @@ if __name__ == '__main__':
         all_y_pred_list.extend(y_pred_tag.cpu().numpy())
         all_y_test.extend(target.cpu().numpy())
         # 
-        duration_MSE += reg_loss(sig(pred_duration), duration.type_as(pred_duration)).mul(3.1355).exp_()
+        duration_MSE += reg_loss(pred_duration, duration.type_as(pred_duration)).mul(3.1355).exp_()
         test_loss += cls_loss(pred_target, target.type_as(pred_target)) + reg_loss(pred_duration, duration.type_as(pred_duration))
         # test_loss += criterion([sig(1/(log_var_a.to(device)**2)*pred_target), pred_duration], [target, duration], [log_var_a, log_var_b])
         # test_loss += criterion_0([cls_loss(pred_target, target.type_as(pred_target)), reg_loss(sig(pred_duration), duration.type_as(pred_duration))], [log_var_a, log_var_b])
@@ -345,9 +373,48 @@ if __name__ == '__main__':
     # y_list = [item for sublist in y_list for item in sublist]
 
 
-    all_combined = [(x,x_pred, _id, _rng) for x, x_pred, _id, _rng in list(zip(all_y_test, all_y_pred_list, all_pids, all_rngs)) if x!=x_pred]
-    test_combined = [(x,x_pred, _id, _rng) for x, x_pred, _id, _rng in list(zip(y_list, y_pred_list, _pids, _rngs)) if x!=x_pred]
     
+    def draw_angles_dist(test_yaw_pitch_rnb_fp_fn, test_yaw_pitch_rnb_tp_tn, angles_dist_file):
+          # import matplotlib.pyplot as plt
+          # fig = plt.figure()
+          # ax = fig.add_subplot()#projection='3d')
+          _pids,_,__,_rngs, _yaw_means, _yaw_stds, _pitch_means, _pitch_stds = test_yaw_pitch_rnb_tp_tn
+          plt.scatter(_yaw_means, _pitch_means, s=8, marker="o", c='b', label=f"TP+TN: {len(_pitch_stds)}")
+
+          _pids,_,__,_rngs, _yaw_means, _yaw_stds, _pitch_means, _pitch_stds = test_yaw_pitch_rnb_fp_fn
+          plt.scatter(_yaw_means, _pitch_means, s=10, marker="^", c="r",  label=f"FP+FN: {len(_pitch_stds)}")
+          
+
+          # for i, txt in enumerate(_rngs):
+          #       plt.annotate(f"{_pids[i]}-{txt}", (_yaw_means[i], _pitch_means[i]))
+
+          plt.axvline(0,c="k")
+          plt.axhline(0,c="k")
+
+
+          plt.xlabel("yaw")
+          plt.ylabel("pitch")
+          plt.legend()
+          plt.savefig(angles_dist_file, dpi=300, bbox_inches='tight')
+          plt.close()
+          
+    all_combined = [(x,x_pred, _id, _rng) for x, x_pred, _id, _rng in list(zip(all_y_test, all_y_pred_list, all_pids, all_rngs)) if x!=x_pred]
+    test_combined = [(x,x_pred, _id, _rng, (_yaw[14]+_yaw[15])/2, (_pitch[14]+_pitch[15])/2) for x, x_pred, _id, _rng,_yaw, _pitch in list(zip(y_list, y_pred_list, _pids, _rngs, _yaws, _pitchs)) if x!=x_pred]
+    # fp+fn
+    # print(type(_pitchs[0]), _pitchs[0], _pitchs[0].shape)
+    # exit()
+    test_yaw_pitch_rnb_fp_fn = [(_pid, x,x_pred, _rng, (_yaw[14]+_yaw[15])/2, np.std(_yaw), (_pitch[14]+_pitch[15])/2, np.std(_pitch)) for _pid, x, x_pred, _rng, _yaw,_pitch in list(zip(_pids,y_list, y_pred_list, _rngs, _yaws, _pitchs)) if x!=x_pred]
+    # for i,t in enumerate(_yaws):
+    #       if np.mean(t) > 45:
+    #         print(y_list[i], y_pred_list[i], t.shape, np.mean(t), t)
+    # exit()
+    test_yaw_pitch_rnb_fp_fn = list(zip(*test_yaw_pitch_rnb_fp_fn))
+    # tp+tn
+    test_yaw_pitch_rnb_tp_tn = [(_pid, x,x_pred, _rng, (_yaw[14]+_yaw[15])/2, np.std(_yaw), (_pitch[14]+_pitch[15])/2, np.std(_pitch)) for _pid, x, x_pred, _rng, _yaw,_pitch in list(zip(_pids, y_list, y_pred_list, _rngs, _yaws, _pitchs)) if x==x_pred]
+    test_yaw_pitch_rnb_tp_tn = list(zip(*test_yaw_pitch_rnb_tp_tn))
+
+    angles_dist_file = os.path.join(dataset_path, f"[fp+fn]dist-{args.prefix}-{args.normalized}-{args.channels}-{BATCH_SIZE}-{EPOCH}.png")
+    draw_angles_dist(test_yaw_pitch_rnb_fp_fn, test_yaw_pitch_rnb_tp_tn,angles_dist_file)
 
     
     # Testing
@@ -361,8 +428,8 @@ if __name__ == '__main__':
     logging.info(f"tn: {tn}, fp: {fp}, fn: {fn}, tp: {tp}")
     print(classification_report(y_list, y_pred_list))
     logging.info(classification_report(y_list, y_pred_list))
-    logging.info("FP+FN")
-    logging.info(test_combined)
+    # logging.info("FP+FN")
+    # logging.info(test_combined)
 
     print("overall performace")
     logging.info("overall performace")
@@ -374,8 +441,8 @@ if __name__ == '__main__':
     logging.info(f"tn: {_tn}, fp: {_fp}, fn: {_fn}, tp: {_tp}")
     print(classification_report(all_y_test, all_y_pred_list))
     logging.info(classification_report(all_y_test, all_y_pred_list))
-    logging.info("FP+FN")
-    logging.info(all_combined)
+    # logging.info("FP+FN")
+    # logging.info(all_combined)
     # print(all_y_test, all_y_pred_list)
 
     
@@ -384,6 +451,7 @@ if __name__ == '__main__':
     plt.legend()
     fig_out_file = os.path.join(dataset_path, f"{args.prefix}-{args.normalized}-{args.channels}-{BATCH_SIZE}-{EPOCH}.png")
     plt.savefig(fig_out_file, dpi=300, bbox_inches='tight')
+    plt.close()
 
     # # # # # # #
     fp_fn = os.path.join(dataset_path, f"fp+fn-{args.prefix}-{args.normalized}-{args.channels}-{BATCH_SIZE}-{EPOCH}")
@@ -413,36 +481,13 @@ if __name__ == '__main__':
       sample_number = 1
       if len(test_combined) > 100:
           test_combined = random.sample(test_combined, 100)
-      for _actual, _prediction, _pid, _rng in tqdm(test_combined, total=len(test_combined), desc="test"):
+      for _actual, _prediction, _pid, _rng, _yaw, _pitch in tqdm(test_combined, total=len(test_combined), desc="test"):
           # 
           _start, _stop = _rng.split("-")
-          _to = f"{test_fp_fn}/{_actual}/{_pid}_sample_{sample_number}"
+          _to = f"{test_fp_fn}/{_actual}/{_pid}_sample_{sample_number}_y{_yaw:.0f}_p{_pitch:.0f}"
           if not os.path.exists(_to):
             os.makedirs(_to)
-          shutil.copyfile(f"{dataset_path}/{_pid}_[{_rng}]_{_actual}.png", f"{_to}/{_pid}_[{_rng}]_{_actual}.png")
-          # 
-          for i in range(int(_start), int(_stop)):
-            if i < 0: continue
-            _from = f"./Blinking/dataset/BlinkingValidationSetVideos/{_pid}/frames/{i:06}.png"
-            _to1 = f"{_to}/{i:06}.png"
-            sftp.get(_from, _to1)
-            # shutil.copyfile(_from, _to)
           
-          sample_number+=1
-
-      # ALL
-      test_fp_fn = os.path.join(fp_fn, "all")
-      dataset_path = os.path.dirname(dataset_path)
-      dataset_path = os.path.join(dataset_path, "plots")
-      if len(all_combined) > 100:
-          all_combined = random.sample(all_combined, 100)
-      for _actual, _prediction, _pid, _rng in tqdm(all_combined, total=len(all_combined), desc="all"):
-          # 
-          _start, _stop = _rng.split("-")
-          _to = f"{test_fp_fn}/{_actual}/{_pid}_sample_{sample_number}"
-          if not os.path.exists(_to):
-            os.makedirs(_to)
-          shutil.copyfile(f"{dataset_path}/{_pid}_[{_rng}]_{_actual}.png", f"{_to}/{_pid}_[{_rng}]_{_actual}.png")
           # 
           for i in range(int(_start)-5, int(_stop)+5):
             if i < 0: continue
@@ -450,7 +495,31 @@ if __name__ == '__main__':
             _to1 = f"{_to}/{i:06}.png"
             sftp.get(_from, _to1)
             # shutil.copyfile(_from, _to)
+          make_gif(_to,f"{_pid}_[{_rng}]_{_actual}")
+          shutil.copyfile(f"{dataset_path}/{_pid}_[{_rng}]_{_actual}.png", f"{_to}/{_pid}_[{_rng}]_{_actual}.png")
           sample_number+=1
+
+      # ALL
+      # test_fp_fn = os.path.join(fp_fn, "all")
+      # dataset_path = os.path.dirname(dataset_path)
+      # dataset_path = os.path.join(dataset_path, "plots")
+      # if len(all_combined) > 100:
+      #     all_combined = random.sample(all_combined, 100)
+      # for _actual, _prediction, _pid, _rng in tqdm(all_combined, total=len(all_combined), desc="all"):
+      #     # 
+      #     _start, _stop = _rng.split("-")
+      #     _to = f"{test_fp_fn}/{_actual}/{_pid}_sample_{sample_number}"
+      #     if not os.path.exists(_to):
+      #       os.makedirs(_to)
+      #     shutil.copyfile(f"{dataset_path}/{_pid}_[{_rng}]_{_actual}.png", f"{_to}/{_pid}_[{_rng}]_{_actual}.png")
+      #     # 
+      #     for i in range(int(_start)-5, int(_stop)+5):
+      #       if i < 0: continue
+      #       _from = f"./Blinking/dataset/BlinkingValidationSetVideos/{_pid}/frames/{i:06}.png"
+      #       _to1 = f"{_to}/{i:06}.png"
+      #       sftp.get(_from, _to1)
+      #       # shutil.copyfile(_from, _to)
+      #     sample_number+=1
 
       sftp.close()
       transport.close()
