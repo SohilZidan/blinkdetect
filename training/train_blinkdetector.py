@@ -272,9 +272,10 @@ if __name__ == '__main__':
     evaluator.add_event_handler(Events.COMPLETED, handler)
 
     # ModelCheckpoint
-    checkpointer = ModelCheckpoint('checkpoint', 'testcnn', save_interval=1, n_saved=2, create_dir=True, save_as_state_dict=True, require_empty=False)
+    # os.makedirs(checkpoints_folder, exist_ok=True)
+    checkpointer = ModelCheckpoint(checkpoints_folder, f"{args.prefix}-{args.normalized}-{args.channels}-{EPOCH}", save_interval=1, n_saved=2, create_dir=True, save_as_state_dict=True, require_empty=False)
     best_model_save = ModelCheckpoint(
-        'best_model', 'textcnn', n_saved=1,
+        checkpoints_folder, f"best-{args.prefix}-{args.normalized}-{args.channels}-{EPOCH}", n_saved=1,
         create_dir=True, save_as_state_dict=True,
         score_function=score_function, require_empty=False)
 
@@ -283,7 +284,3 @@ if __name__ == '__main__':
 
     #  RUN
     trainer.run(dataloaders['train'], max_epochs=5)
-
-    # os.makedirs(checkpoints_folder, exist_ok=True)
-    # model_PATH = os.path.join(checkpoints_folder, f"{args.prefix}-{args.normalized}-{args.channels}-{EPOCH}.pth")
-    # torch.save(network.state_dict(), model_PATH)
