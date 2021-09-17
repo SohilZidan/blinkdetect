@@ -172,7 +172,7 @@ if __name__ == '__main__':
     #
     RunningAverage(output_transform=lambda x: x).attach(trainer, 'loss')
     RunningAverage(output_transform=lambda x: x['combined']).attach(evaluator, 'loss')
-    RunningAverage(output_transform=lambda x: x['combined']).attach(tester, 'loss')
+    RunningAverage(output_transform=lambda x: x['reg_loss']).attach(tester, 'duration error')
 
     def class_transform(output):
         y_pred, _ = output["preds"]
@@ -238,6 +238,7 @@ if __name__ == '__main__':
     def log_training_results(trainer):
         train_evaluator.run(dataloaders['val'])
         metrics = train_evaluator.state.metrics
+        pbar.log_message("----------------------------------")
         pbar.log_message(
         "Training Results - Epoch: {} \nMetrics\n{}"
         .format(trainer.state.epoch, pprint.pformat(metrics)))
@@ -246,6 +247,7 @@ if __name__ == '__main__':
     def log_validation_results(engine):
         evaluator.run(dataloaders['val'])
         metrics = evaluator.state.metrics
+        pbar.log_message("----------------------------------")
         pbar.log_message(
             "Validation Results - Epoch: {} \nMetrics\n{}"
             .format(engine.state.epoch, pprint.pformat(metrics)))
@@ -255,9 +257,9 @@ if __name__ == '__main__':
     def log_testing_results(engine):
         tester.run(dataloaders['test'])
         metrics = tester.state.metrics
-        pbar.log_message("-------------------")
+        pbar.log_message("----------------------------------")
         pbar.log_message(
-            "Validation Results - Epoch: {} \nMetrics\n{}"
+            "Testing Results - Epoch: {} \nMetrics\n{}"
             .format(engine.state.epoch, pprint.pformat(metrics)))
         pbar.n = pbar.last_print_n = 0
 
