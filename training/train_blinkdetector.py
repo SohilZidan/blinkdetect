@@ -53,7 +53,7 @@ if __name__ == '__main__':
           dataset_path = args.dataset_path
     
     os.makedirs(dataset_path, exist_ok=True)
-    log_file = os.path.join(dataset_path, f"{args.prefix}-{args.normalized}-{args.channels}-{BATCH_SIZE}-{EPOCH}.txt")
+    log_file = os.path.join(dataset_path, f"{args.prefix}-{args.normalized}-{args.channels}-{BATCH_SIZE}.txt")
     if os.path.exists(log_file):
           os.remove(log_file)
     logging.basicConfig(filename=log_file,  level=logging.INFO)
@@ -294,4 +294,6 @@ if __name__ == '__main__':
     #  RUN
     trainer.run(dataloaders['train'], max_epochs=EPOCH)
 
-    print(handler.state_dict())
+    # print(handler.state_dict())
+    logging.info("early stopping:")
+    logging.info(handler.state_dict())
