@@ -275,14 +275,23 @@ if __name__ == '__main__':
 
     # ModelCheckpoint
     # os.makedirs(checkpoints_folder, exist_ok=True)
-    checkpointer = ModelCheckpoint(checkpoints_folder, f"{args.prefix}-{args.normalized}-{args.channels}-{EPOCH}", save_interval=1, n_saved=2, create_dir=True, save_as_state_dict=True, require_empty=False)
+    checkpointer = ModelCheckpoint(
+        checkpoints_folder, 
+        f"{args.prefix}-{args.normalized}-{args.channels}", 
+        n_saved=2, 
+        create_dir=True, 
+        # score_function=lambda x: -x.state.output,  
+        require_empty=False)
     best_model_save = ModelCheckpoint(
-        checkpoints_folder, f"best-{args.prefix}-{args.normalized}-{args.channels}-{EPOCH}", n_saved=1,
-        create_dir=True, save_as_state_dict=True,
+        checkpoints_folder, 
+        f"best-{args.prefix}-{args.normalized}-{args.channels}", n_saved=1,
+        create_dir=True,
         score_function=score_function, require_empty=False)
 
-    trainer.add_event_handler(Events.EPOCH_COMPLETED, checkpointer, {'textcnn': network})
-    evaluator.add_event_handler(Events.EPOCH_COMPLETED, best_model_save, {'textcnn': network})
+    trainer.add_event_handler(Events.EPOCH_COMPLETED(every=1), checkpointer, {'blinkdetector': network})
+    evaluator.add_event_handler(Events.EPOCH_COMPLETED, best_model_save, {'blinkdetector': network})
 
     #  RUN
     trainer.run(dataloaders['train'], max_epochs=EPOCH)
+
+    print(handler.state_dict())
