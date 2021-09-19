@@ -277,14 +277,14 @@ if __name__ == '__main__':
     # os.makedirs(checkpoints_folder, exist_ok=True)
     checkpointer = ModelCheckpoint(
         checkpoints_folder, 
-        f"{args.prefix}-{args.normalized}-{args.channels}", 
+        f"{args.prefix}-{args.normalized}-{args.channels}-{BATCH_SIZE}", 
         n_saved=2, 
         create_dir=True, 
         # score_function=lambda x: -x.state.output,  
         require_empty=False)
     best_model_save = ModelCheckpoint(
         checkpoints_folder, 
-        f"best-{args.prefix}-{args.normalized}-{args.channels}", n_saved=1,
+        f"best-{args.prefix}-{args.normalized}-{args.channels}-{BATCH_SIZE}", n_saved=1,
         create_dir=True,
         score_function=score_function, require_empty=False)
 
