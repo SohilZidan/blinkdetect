@@ -24,7 +24,8 @@ from blinkdetect.dataset import BlinkDataset1C, BlinkDataset2C, BlinkDataset4C
 
 
 def_anns_file = os.path.join(os.path.dirname(__file__),"..", "dataset","augmented_signals", "annotations.json")
-checkpoints_folder = os.path.join(os.path.dirname(__file__), "..", "checkpoints")
+checkpoints_folder = os.path.join(os.path.dirname(__file__), "..", "checkpoint")
+best_checkpoints_folder = os.path.join(os.path.dirname(__file__), "..", "best_model")
 
 def parser():
     argparser = argparse.ArgumentParser()
@@ -274,7 +275,6 @@ if __name__ == '__main__':
     evaluator.add_event_handler(Events.COMPLETED, handler)
 
     # ModelCheckpoint
-    # os.makedirs(checkpoints_folder, exist_ok=True)
     checkpointer = ModelCheckpoint(
         checkpoints_folder, 
         f"{args.prefix}-{args.normalized}-{args.channels}-{BATCH_SIZE}", 
@@ -283,7 +283,7 @@ if __name__ == '__main__':
         # score_function=lambda x: -x.state.output,  
         require_empty=False)
     best_model_save = ModelCheckpoint(
-        checkpoints_folder, 
+        best_checkpoints_folder, 
         f"best-{args.prefix}-{args.normalized}-{args.channels}-{BATCH_SIZE}", n_saved=1,
         create_dir=True,
         score_function=score_function, require_empty=False)
