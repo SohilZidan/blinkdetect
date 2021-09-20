@@ -134,6 +134,7 @@ if __name__ == '__main__':
     reg_loss = MSELoss()
     sig = Sigmoid()
     optimizer = torch.optim.Adam(network.parameters(), lr=1e-4, weight_decay=1e-5, amsgrad=True)
+    logging.info(optimizer)
 
     training_losses = []
     validation_losses = []
@@ -294,9 +295,9 @@ if __name__ == '__main__':
 
     # EarlyStopping
     def score_function(engine):
-        val_loss = engine.state.output['combined']
-        return -val_loss
-    handler = EarlyStopping(patience=10, score_function=score_function, trainer=trainer)
+        val_loss = engine.state.metrics['F1']
+        return val_loss
+    handler = EarlyStopping(patience=5, score_function=score_function, trainer=trainer)
     evaluator.add_event_handler(Events.COMPLETED, handler)
 
     # ModelCheckpoint
@@ -305,7 +306,6 @@ if __name__ == '__main__':
         f"{args.prefix}-{args.normalized}-{args.channels}-{BATCH_SIZE}", 
         n_saved=2, 
         create_dir=True, 
-        # score_function=lambda x: -x.state.output,  
         require_empty=False)
     best_model_save = ModelCheckpoint(
         best_checkpoints_folder, 
