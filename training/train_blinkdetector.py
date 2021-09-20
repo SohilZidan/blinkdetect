@@ -133,7 +133,7 @@ if __name__ == '__main__':
     cls_loss = BCEWithLogitsLoss()
     reg_loss = MSELoss()
     sig = Sigmoid()
-    optimizer = torch.optim.Adam(network.parameters(), lr=1e-4, weight_decay=1e-5, amsgrad=True)
+    optimizer = torch.optim.Adam(network.parameters(), lr=1e-4)#,  amsgrad=True)
     logging.info(optimizer)
 
     training_losses = []
