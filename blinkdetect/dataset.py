@@ -88,7 +88,8 @@ class BlinkDataset2C(BlinkDataSet):
     _input2 = _signals['std_r']
     _input3 = _signals['std_g']
     _input4 = _signals['std_b']
-    avg_std = torch.mean(torch.stack([_input2, _input3, _input4], dim=0), dim=0)
+    # 0.299 ∙ Red + 0.587 ∙ Green + 0.114 ∙ Blue 
+    avg_std = torch.mean(torch.stack([0.299* _input2, 0.587 * _input3, 0.114 * _input4], dim=0), dim=0)
     # 
     features = torch.stack([_input1, avg_std], dim=0)
     label = torch.tensor([_signals['is_blink']])
