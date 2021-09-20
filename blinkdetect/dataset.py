@@ -127,19 +127,19 @@ class Normalize(object):
     min_std_r=0.0
     # max_std_r= 70.57724795565552 old
     max_std_r= 66.
-    sample['std_r'] = (sample['std_r'] - min_std_r) / (max_std_r-min_std_r)
+    # sample['std_r'] = (sample['std_r'] - min_std_r) / (max_std_r-min_std_r)
     # sample['std_r'] = sample['std_r'] * (self._max - self._min) - self._min
 
     min_std_g= 0.0
     # max_std_g =69.65935905429274 old
     max_std_g =68.
-    sample['std_g'] = (sample['std_g'] - min_std_g) / (max_std_g-min_std_g)
+    # sample['std_g'] = (sample['std_g'] - min_std_g) / (max_std_g-min_std_g)
     # sample['std_g'] = sample['std_g'] * (self._max - self._min) - self._min
 
     min_std_b= 0.0
     # max_std_b =72.89523973711425 old
     max_std_b =68.
-    sample['std_b'] = (sample['std_b'] - min_std_b) / (max_std_b-min_std_b)
+    # sample['std_b'] = (sample['std_b'] - min_std_b) / (max_std_b-min_std_b)
     # sample['std_b'] = sample['std_b'] * (self._max - self._min) - self._min
 
     min_eyelids= 0.0
