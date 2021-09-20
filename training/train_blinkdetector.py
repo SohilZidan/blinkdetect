@@ -22,6 +22,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from blinkdetect.models.blinkdetection import BlinkDetector
 from blinkdetect.dataset import BlinkDataset1C, BlinkDataset2C, BlinkDataset4C
 
+import matplotlib.pyplot as plt
+
 
 def_anns_file = os.path.join(os.path.dirname(__file__),"..", "dataset","augmented_signals", "annotations.json")
 checkpoints_folder = os.path.join(os.path.dirname(__file__), "..", "checkpoint")
@@ -45,6 +47,8 @@ if __name__ == '__main__':
     args = parser()
     BATCH_SIZE = args.batch
     EPOCH = args.epoch
+
+    dataset_name = os.path.basename(os.path.dirname(args.annotation_file))
 
     if args.dataset_path == "":
           _name, _ = os.path.basename(args.annotation_file).split(".")
@@ -130,6 +134,9 @@ if __name__ == '__main__':
     reg_loss = MSELoss()
     sig = Sigmoid()
     optimizer = torch.optim.Adam(network.parameters(), lr=1e-4, weight_decay=1e-5, amsgrad=True)
+
+    training_losses = []
+    validation_losses = []
 
     # Training Process function
     def train_step(trainer, batch):
@@ -237,22 +244,36 @@ if __name__ == '__main__':
     #  Training Results
     @trainer.on(Events.COMPLETED)
     def log_training_results(trainer):
-        train_evaluator.run(dataloaders['val'])
+        train_evaluator.run(dataloaders['train'])
         metrics = train_evaluator.state.metrics
         pbar.log_message("----------------------------------")
         pbar.log_message(
         "Training Results - Epoch: {} \nMetrics\n{}"
         .format(trainer.state.epoch, pprint.pformat(metrics)))
+        logging.info("----------------------------------")
+        logging.info(
+        "Training Results - Epoch: {} \nMetrics\n{}"
+        .format(trainer.state.epoch, pprint.pformat(metrics)))
+
+    @trainer.on(Events.EPOCH_COMPLETED)
+    def log_training_results(trainer):
+        metrics = trainer.state.metrics
+        training_losses.append(metrics['loss'])
 
     #  Validation Results
     def log_validation_results(engine):
         evaluator.run(dataloaders['val'])
         metrics = evaluator.state.metrics
+        validation_losses.append(metrics['loss'])
         pbar.log_message("----------------------------------")
         pbar.log_message(
             "Validation Results - Epoch: {} \nMetrics\n{}"
             .format(engine.state.epoch, pprint.pformat(metrics)))
         pbar.n = pbar.last_print_n = 0
+        logging.info("----------------------------------")
+        logging.info(
+            "Validation Results - Epoch: {} \nMetrics\n{}"
+            .format(engine.state.epoch, pprint.pformat(metrics)))
 
     #  Testing Results
     def log_testing_results(engine):
@@ -263,6 +284,10 @@ if __name__ == '__main__':
             "Testing Results - Epoch: {} \nMetrics\n{}"
             .format(engine.state.epoch, pprint.pformat(metrics)))
         pbar.n = pbar.last_print_n = 0
+        logging.info("----------------------------------")
+        logging.info(
+            "Testing Results - Epoch: {} \nMetrics\n{}"
+            .format(engine.state.epoch, pprint.pformat(metrics)))
 
     trainer.add_event_handler(Events.EPOCH_COMPLETED, log_validation_results)
     trainer.add_event_handler(Events.COMPLETED, log_testing_results)
@@ -271,7 +296,7 @@ if __name__ == '__main__':
     def score_function(engine):
         val_loss = engine.state.output['combined']
         return -val_loss
-    handler = EarlyStopping(patience=5, score_function=score_function, trainer=trainer)
+    handler = EarlyStopping(patience=10, score_function=score_function, trainer=trainer)
     evaluator.add_event_handler(Events.COMPLETED, handler)
 
     # ModelCheckpoint
@@ -288,8 +313,8 @@ if __name__ == '__main__':
         create_dir=True,
         score_function=score_function, require_empty=False)
 
-    trainer.add_event_handler(Events.EPOCH_COMPLETED(every=1), checkpointer, {'blinkdetector': network})
-    evaluator.add_event_handler(Events.EPOCH_COMPLETED, best_model_save, {'blinkdetector': network})
+    trainer.add_event_handler(Events.EPOCH_COMPLETED(every=1), checkpointer, {f'{dataset_name}': network})
+    evaluator.add_event_handler(Events.EPOCH_COMPLETED, best_model_save, {f'{dataset_name}': network})
 
     #  RUN
     trainer.run(dataloaders['train'], max_epochs=EPOCH)
@@ -297,3 +322,11 @@ if __name__ == '__main__':
     # print(handler.state_dict())
     logging.info("early stopping:")
     logging.info(handler.state_dict())
+
+    # save learning curve
+    plt.plot(training_losses, 'r', label="training loss")
+    plt.plot(validation_losses, 'b',  label="validation loss")
+    plt.legend()
+    fig_out_file = os.path.join(dataset_path, f"{args.prefix}-{args.normalized}-{args.channels}-{BATCH_SIZE}.png")
+    plt.savefig(fig_out_file, dpi=300, bbox_inches='tight')
+    plt.close()
