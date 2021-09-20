@@ -54,8 +54,8 @@ def resample_blink(y_in, start, stop, samples=None, upsampling=True):
     blink[start:stop+1] = np.ones(blink_length, dtype=np.int32).tolist()
     blink_roi = blink[start:stop+1].copy()
     # prolong
-    min_len=min(6, len(y_roi))
-    max_len=max(21,len(y_roi))
+    min_len=min(2, len(y_roi))
+    max_len=max(23,len(y_roi))
     #
     y_sampled, _num = prolong(y_roi, x_roi, upsampling=upsampling, min_len=min_len, max_len=max_len, Num=samples)
     _x_sampled = np.linspace(start,start+len(y_sampled)-1, len(y_sampled))
