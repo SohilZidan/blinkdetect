@@ -36,7 +36,8 @@ class BlinkDataset4C(BlinkDataSet):
     _input4 = _signals['std_b']
     # 
     features = torch.stack([_input1, _input2, _input3, _input4], dim=0)
-    label = torch.tensor([_signals['is_blink']])
+    # label = torch.tensor([_signals['is_blink']])
+    label = _signals['is_blink']
     # 
     if _signals['blink_length'] == 0:
       duration = torch.tensor([_signals['blink_length']], dtype=torch.float32)
@@ -62,7 +63,7 @@ class BlinkDataset1C(BlinkDataSet):
     _input1 = _signals['eyelids_dist']
     # 
     features = torch.stack([_input1], dim=0)
-    label = torch.tensor([_signals['is_blink']])
+    label = _signals['is_blink']
     # 
     if _signals['blink_length'] == 0:
       duration = torch.tensor([_signals['blink_length']], dtype=torch.float32)
@@ -92,7 +93,8 @@ class BlinkDataset2C(BlinkDataSet):
     avg_std = torch.mean(torch.stack([0.299* _input2, 0.587 * _input3, 0.114 * _input4], dim=0), dim=0)
     # 
     features = torch.stack([_input1, avg_std], dim=0)
-    label = torch.tensor([_signals['is_blink']])
+    # label = torch.tensor([_signals['is_blink']])
+    label = _signals['is_blink']
     # 
     if _signals['blink_length'] == 0:
       duration = torch.tensor([_signals['blink_length']], dtype=torch.float32)
