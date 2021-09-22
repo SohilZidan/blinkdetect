@@ -8,7 +8,7 @@ import pprint
 
 import torch
 torch.multiprocessing.set_sharing_strategy('file_system')
-from torch.nn import MSELoss, BCEWithLogitsLoss, Sigmoid
+from torch.nn import MSELoss, CrossEntropyLoss, Sigmoid, Softmax
 
 import ignite
 from ignite.engine import Events, Engine
@@ -53,12 +53,12 @@ if __name__ == '__main__':
     if args.dataset_path == "":
           _name, _ = os.path.basename(args.annotation_file).split(".")
           _, _version = _name.split("-")
-          dataset_path = os.path.join(os.path.dirname(__file__), ".." , "dataset", "augmented_signals", "versions", _version, "training")
+          dataset_path = os.path.join(os.path.dirname(__file__), ".." , "dataset", "augmented_signals", "versions", _version, "training-softmax")
     else:
           dataset_path = args.dataset_path
     
     os.makedirs(dataset_path, exist_ok=True)
-    log_file = os.path.join(dataset_path, f"{args.prefix}-{args.normalized}-{args.channels}-{BATCH_SIZE}.txt")
+    log_file = os.path.join(dataset_path, f"{args.prefix}-{args.normalized}-{args.channels}-{BATCH_SIZE}-softmax.txt")
     if os.path.exists(log_file):
           os.remove(log_file)
     logging.basicConfig(filename=log_file,  level=logging.INFO)
@@ -130,10 +130,14 @@ if __name__ == '__main__':
     logging.info(network)
 
     # Define the loss function and optimizer
-    cls_loss = BCEWithLogitsLoss()
+    cls_loss = CrossEntropyLoss()
     reg_loss = MSELoss()
     sig = Sigmoid()
+<<<<<<< HEAD
     optimizer = torch.optim.Adam(network.parameters(), lr=1e-4)#,  amsgrad=True)
+=======
+    optimizer = torch.optim.Adam(network.parameters(), lr=1e-4, amsgrad=True)
+>>>>>>> feature/eye-region-normalization
     logging.info(optimizer)
 
     training_losses = []
@@ -146,7 +150,7 @@ if __name__ == '__main__':
         data, target, duration, _pid, _rng, _yaw, _pitch = batch
         data, target, duration = data.to(device), target.to(device), duration.to(device)
         pred_target, pred_duration = network(data)
-        _loss1 = cls_loss(pred_target, target.type_as(pred_target))
+        _loss1 = cls_loss(pred_target, target.long())
         _loss2 = reg_loss(pred_duration, duration.type_as(pred_duration))
         loss = _loss1 + _loss2
         loss.backward()
@@ -160,10 +164,9 @@ if __name__ == '__main__':
             data, target, duration, _pid, _rng, _yaw, _pitch = batch
             data, target, duration = data.to(device), target.to(device), duration.to(device)
             pred_target, pred_duration = network(data)
-            _loss1 = cls_loss(pred_target, target.type_as(pred_target))
+            _loss1 = cls_loss(pred_target, target.long())
             _loss2 = reg_loss(pred_duration, duration.type_as(pred_duration))
             loss = _loss1 + _loss2
-            # print(loss.item(), pred_target, pred_duration, target, duration)
             return {
                 "combined": loss.item(),
                 "cls_loss": _loss1.item(),
@@ -186,14 +189,14 @@ if __name__ == '__main__':
     def class_transform(output):
         y_pred, _ = output["preds"]
         y, _ = output["GT"]
-        y_pred = torch.sigmoid(y_pred)
-        y_pred = torch.round(y_pred).type_as(y)
-        return y_pred, y
+        y_pred = torch.max(y_pred.data,1)
+        return y_pred[1], y
 
     def binary_one_hot_output_transform(output):
-        y_pred, y = output["preds"][0], output["GT"][0]
-        y_pred = torch.sigmoid(y_pred).round().long()
-        y_pred = ignite.utils.to_onehot(y_pred, 2)
+        y_pred, _ = output["preds"]
+        y, _ = output["GT"]
+        y_pred = torch.max(y_pred.data,1)
+        y_pred = ignite.utils.to_onehot(y_pred[1], 2)
         y = y.long()
         return y_pred, y
 
@@ -313,8 +316,8 @@ if __name__ == '__main__':
         create_dir=True,
         score_function=score_function, require_empty=False)
 
-    trainer.add_event_handler(Events.EPOCH_COMPLETED(every=1), checkpointer, {f'{dataset_name}': network})
-    evaluator.add_event_handler(Events.EPOCH_COMPLETED, best_model_save, {f'{dataset_name}': network})
+    trainer.add_event_handler(Events.EPOCH_COMPLETED(every=1), checkpointer, {f'{dataset_name}-softmax': network})
+    evaluator.add_event_handler(Events.EPOCH_COMPLETED, best_model_save, {f'{dataset_name}-softmax': network})
 
     #  RUN
     trainer.run(dataloaders['train'], max_epochs=EPOCH)
@@ -327,6 +330,6 @@ if __name__ == '__main__':
     plt.plot(training_losses, 'r', label="training loss")
     plt.plot(validation_losses, 'b',  label="validation loss")
     plt.legend()
-    fig_out_file = os.path.join(dataset_path, f"{args.prefix}-{args.normalized}-{args.channels}-{BATCH_SIZE}.png")
+    fig_out_file = os.path.join(dataset_path, f"{args.prefix}-{args.normalized}-{args.channels}-{BATCH_SIZE}-softmax.png")
     plt.savefig(fig_out_file, dpi=300, bbox_inches='tight')
     plt.close()

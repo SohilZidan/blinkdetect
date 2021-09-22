@@ -220,15 +220,10 @@ if __name__=="__main__":
                 
                 # walk through valid intervals
                 for _interval in _valid_intervals:
-                    if _interval.start < _blink.start and _interval.stop > _blink.stop:
-                        print(_interval, "-",_from,_to)
-                        print(_blink)
-
-                    # 
+                    #
                     if _interval.length+1 < 30:
                         continue
-                    # 
-                    
+                    #
                     _n_frames_skipped = 30 - args.overlap
                     _max_examples = floor((_interval.length+1)/_n_frames_skipped)
                     _n_required_examples = int(_max_examples)
@@ -243,7 +238,7 @@ if __name__=="__main__":
                     while _examples < _n_required_examples:
 
                         random_end = random_start+30
-                        if random_end >= _blink.stop:
+                        if random_end >= _blink.start + _blink.length/2:
                             break
 
                         y_eyelids_noblink, _no_blink, _num_noblink = resample_noblink(y_in=eyelids_dist, start=random_start, stop=random_end-1, samples=30)

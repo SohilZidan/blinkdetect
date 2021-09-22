@@ -21,7 +21,7 @@ class BlinkDetector(torch.nn.Module):
             Sigmoid()
         )
 
-        self.classifier = self.build_mlp(64, 1)
+        self.classifier = self.build_mlp(64, 2)
 
     @staticmethod
     def build_mlp(input_dim, output_dim):
