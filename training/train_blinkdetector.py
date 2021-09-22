@@ -133,11 +133,7 @@ if __name__ == '__main__':
     cls_loss = CrossEntropyLoss()
     reg_loss = MSELoss()
     sig = Sigmoid()
-<<<<<<< HEAD
-    optimizer = torch.optim.Adam(network.parameters(), lr=1e-4)#,  amsgrad=True)
-=======
-    optimizer = torch.optim.Adam(network.parameters(), lr=1e-4, amsgrad=True)
->>>>>>> feature/eye-region-normalization
+    optimizer = torch.optim.Adam(network.parameters(), lr=1e-4)#, weight_decay=1e-5,amsgrad=True)
     logging.info(optimizer)
 
     training_losses = []
