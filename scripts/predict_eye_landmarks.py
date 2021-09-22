@@ -77,17 +77,26 @@ def parser():
 
     return _parser.parse_args()
 
-def eyelids_directed_hausdorff_2D(set1_indices: list, set2_indices: list, landmarks: np.ndarray):
+def iris_diameter(iris):
+    center = iris[0,0:1, :2]
+    diameter = 0.0
+    for i in range(1,5):
+        print(np.linalg.norm(center - iris[0,i, :2]))
+        diameter += np.linalg.norm(center - iris[0,i, :2])
+    
+    return diameter/4
+
+def eyelids_directed_hausdorff_2D(set1_indices: list, set2_indices: list, landmarks: np.ndarray, iris: np.ndarray):
     A = landmarks[:, set1_indices[0]:set1_indices[1], 0:2].reshape((-1,2))
     B = landmarks[:, set2_indices[0]:set2_indices[1], 0:2].reshape((-1,2))
-    return directed_hausdorff(B,A)[0]
+    diameter = iris_diameter(iris)
+    return directed_hausdorff(B,A)[0] / diameter
 
-def eyelids_directed_hausdorff_3D(set1_indices: list, set2_indices: list, landmarks: np.ndarray):
+def eyelids_directed_hausdorff_3D(set1_indices: list, set2_indices: list, landmarks: np.ndarray, iris: np.ndarray):
     A = landmarks[:, set1_indices[0]:set1_indices[1], :].reshape((-1,3))
     B = landmarks[:, set2_indices[0]:set2_indices[1], :].reshape((-1,3))
-    return directed_hausdorff(B,A)[0]
-
-
+    diameter = iris_diameter(iris)
+    return directed_hausdorff(B,A)[0] / diameter
 
 def extract_eye_region(face: np.ndarray, facemeshnet, iris_net):
     """
@@ -198,7 +207,7 @@ def extract_eye_region_curve(face: np.ndarray, facemeshnet, iris_net):
         x_pupil_center, y_pupil_center ,_ = iris[0, 0]
         pupil_center=(int(x_pupil_center), int(y_pupil_center))
 
-        resp[_eye] = {"eye_region": eye_region, "eye_corners":eye_corners, "pupil_center":pupil_center, "eye": eye[:, 0:16, :], "midx": midx, 'midy':midy}
+        resp[_eye] = {"eye_region": eye_region, "eye_corners":eye_corners, "pupil_center":pupil_center, "eye": eye[:, 0:16, :], "midx": midx, 'midy':midy, "iris": iris}
 
     return resp
 
@@ -234,7 +243,7 @@ def color_analysis(eye_region, eye_corners, pupil_center, eye):
 
     return line_points, _std, _mean, _eyelids_dist
 
-def color_analysis_curve(eye_region, midx, midy, eye):
+def color_analysis_curve(eye_region, midx, midy, eye, iris):
     # 
     mid_points = np.stack([midx,midy], axis=1)
     diff_mid_points = mid_points[1:] - mid_points[:-1]
@@ -252,7 +261,7 @@ def color_analysis_curve(eye_region, midx, midy, eye):
     x, y = acc_x, acc_y
 
     # eyelids distance
-    _eyelids_dist = eyelids_directed_hausdorff(set1_indices=[1,8], set2_indices=[9,16], landmarks=eye)
+    _eyelids_dist = eyelids_directed_hausdorff(set1_indices=[1,8], set2_indices=[9,16], landmarks=eye, iris=iris)
     # 
 
     _std = []
@@ -389,7 +398,7 @@ def predict_eye_region(images_paths: list, facesInfo: pd.DataFrame, facemeshnet,
         
         for _eye in resp:
             # line_points, _std, _mean, _eyelids_dist = color_analysis(**resp[_eye])
-            line_points, _std, _mean, _eyelids_dist = color_analysis_curve(resp[_eye]['eye_region'], resp[_eye]['midx'], resp[_eye]['midy'], resp[_eye]['eye'])
+            line_points, _std, _mean, _eyelids_dist = color_analysis_curve(resp[_eye]['eye_region'], resp[_eye]['midx'], resp[_eye]['midy'], resp[_eye]['eye'], resp[_eye]['iris'])
             resp[_eye]['line_points'] = line_points
             resp[_eye]['std'] = _std
             resp[_eye]['mean_color'] = _mean
