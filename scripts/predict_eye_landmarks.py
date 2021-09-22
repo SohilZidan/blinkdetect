@@ -81,7 +81,6 @@ def iris_diameter(iris):
     center = iris[0,0:1, :2]
     diameter = 0.0
     for i in range(1,5):
-        print(np.linalg.norm(center - iris[0,i, :2]))
         diameter += np.linalg.norm(center - iris[0,i, :2])
     
     return diameter/4
