@@ -148,7 +148,7 @@ class Normalize(object):
     min_eyelids= 0.0
     # max_eyelids= 10.102511040619552 old
     max_eyelids= 12.
-    sample['eyelids_dist'] = (sample['eyelids_dist'] - min_eyelids) / (max_eyelids-min_eyelids)
+    # sample['eyelids_dist'] = (sample['eyelids_dist'] - min_eyelids) / (max_eyelids-min_eyelids)
     # sample['eyelids_dist'] = sample['eyelids_dist'] * (self._max - self._min) - self._min
 
     return sample

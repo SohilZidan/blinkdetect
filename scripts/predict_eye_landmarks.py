@@ -11,8 +11,8 @@ import numpy as np
 import pandas as pd
 import cv2
 import torch
-import torchvision
-from PIL import Image
+# import torchvision
+# from PIL import Image
 import scipy
 import tqdm
 
@@ -58,13 +58,13 @@ left_eye_indices = lower_left+upper_left
 right_eye_indices = lower_right + upper_right
 eye_indices = {"left":left_eye_indices, "right":right_eye_indices}
 #
-transform = torchvision.transforms.Compose([
-    torchvision.transforms.ToTensor(),
-    torchvision.transforms.Normalize(
-        mean=[0.485, 0.456, 0.406],
-        std=[0.229, 0.224, 0.225],
-    ),
-])
+# transform = torchvision.transforms.Compose([
+#     torchvision.transforms.ToTensor(),
+#     torchvision.transforms.Normalize(
+#         mean=[0.485, 0.456, 0.406],
+#         std=[0.229, 0.224, 0.225],
+#     ),
+# ])
 
 def parser():
     _parser = argparse.ArgumentParser()
@@ -168,14 +168,14 @@ def extract_eye_region_curve(face: np.ndarray, facemeshnet, iris_net):
         eye_region = img[top:bottom,left:right, :]
         eye_region = cv2.resize(eye_region, (64, 64))
         #
-        eye_region_pil = Image.fromarray(eye_region)
-        normalized_eye_region_pil = transform(eye_region_pil).numpy().transpose(1,2,0)
+        # eye_region_pil = Image.fromarray(eye_region)
+        # normalized_eye_region_pil = transform(eye_region_pil).numpy().transpose(1,2,0)
 
         eye_gpu, iris_gpu = iris_net.predict_on_image(eye_region)
         eye = eye_gpu.cpu().numpy()
         iris = iris_gpu.cpu().numpy()
         #
-        eye_region = np.asarray(normalized_eye_region_pil)
+        # eye_region = np.asarray(normalized_eye_region_pil)
         # # # # # #
         # eyelids #
         # # # # # #
