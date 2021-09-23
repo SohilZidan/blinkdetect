@@ -242,7 +242,7 @@ if __name__=="__main__":
                             break
 
                         _interval_tmp = blinking_anns.intersect(AnnotationOfIntervals(Unit.INDEX, [Interval(random_start, random_end)]))
-                        _partial_length = _interval_tmp.sumIntervalLengths()
+                        _partial_length = _interval_tmp.sumIntervalLengths
 
                         y_eyelids_noblink, _no_blink, _num_noblink = resample_noblink(y_in=eyelids_dist, start=random_start, stop=random_end-1, samples=30)
                         y_std_r_noblink, _, _num_noblink = resample_noblink(y_in=std_r, start=random_start, stop=random_end-1, samples=_num_noblink)
