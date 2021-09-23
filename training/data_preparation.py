@@ -263,7 +263,7 @@ if __name__=="__main__":
                             "yaws": y_yaws.tolist(),
                             "pitchs": y_pitchs.tolist(),
                             "is_blink": 0,
-                            "blink_length": _partial_length,
+                            "blink_length": int(_partial_length),
                             "start": 0,
                             "end": 0}
                         annotations_0.append(_ann)
