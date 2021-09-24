@@ -80,10 +80,9 @@ def parser():
 def iris_diameter(iris):
     center = iris[0,0:1, :2]
     diameter = 0.0
-    for i in range(1,5):
-        diameter += np.linalg.norm(center - iris[0,i, :2])
-    
-    return diameter/4
+    diameter = np.linalg.norm(iris[0,1, :2] - iris[0,3, :2])
+    diameter = np.linalg.norm(iris[0,2, :2] - iris[0,4, :2])
+    return diameter/2
 
 def eyelids_directed_hausdorff_2D(set1_indices: list, set2_indices: list, landmarks: np.ndarray, iris: np.ndarray):
     A = landmarks[:, set1_indices[0]:set1_indices[1], 0:2].reshape((-1,2))
