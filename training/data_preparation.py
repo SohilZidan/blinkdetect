@@ -241,6 +241,9 @@ if __name__=="__main__":
                         if random_end >= _blink.start + _blink.length/2:
                             break
 
+                        _interval_tmp = blinking_anns.intersect(AnnotationOfIntervals(Unit.INDEX, [Interval(random_start, random_end)]))
+                        _partial_length = _interval_tmp.sumIntervalLengths
+
                         y_eyelids_noblink, _no_blink, _num_noblink = resample_noblink(y_in=eyelids_dist, start=random_start, stop=random_end-1, samples=30)
                         y_std_r_noblink, _, _num_noblink = resample_noblink(y_in=std_r, start=random_start, stop=random_end-1, samples=_num_noblink)
                         y_std_g_noblink, _, _num_noblink = resample_noblink(y_in=std_g, start=random_start, stop=random_end-1, samples=_num_noblink)
@@ -260,7 +263,7 @@ if __name__=="__main__":
                             "yaws": y_yaws.tolist(),
                             "pitchs": y_pitchs.tolist(),
                             "is_blink": 0,
-                            "blink_length": 0,
+                            "blink_length": int(_partial_length),
                             "start": 0,
                             "end": 0}
                         annotations_0.append(_ann)
