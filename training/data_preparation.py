@@ -42,8 +42,8 @@ if __name__=="__main__":
     parser.add_argument("--output_folder", default="")
     parser.add_argument('--dataset', required=True, choices=["BlinkingValidationSetVideos", "eyeblink8", "talkingFace", "zju", "RN"])
     parser.add_argument("--generate_plots", action="store_true")
-    parser.add_argument("--yaw_range", type=int, default=180)
-    parser.add_argument("--pitch_range", type=int, default=180)
+    parser.add_argument("--yaw_range", type=int, metavar='N',  nargs=2, default=[180])
+    parser.add_argument("--pitch_range", type=int, metavar='M',  nargs=2, default=[180])
     parser.add_argument("--face_found", action="store_true")
     parser.add_argument("--no_blink", type=check_positive, help="number of no blinks to be generated in between blinks")
     parser.add_argument("--overlap", type=int, choices=range(0,30) ,default=0, metavar="[0,30)")
@@ -182,8 +182,8 @@ if __name__=="__main__":
         
 
         face_found_anns = get_intervals(faces_not_found, val=0)
-        yaw_preds = get_intervals_between(yaw_angles, val=int(args.yaw_range))
-        pitch_preds = get_intervals_between(pitch_angles, val=int(args.pitch_range))
+        yaw_preds = get_intervals_between(yaw_angles, val=args.yaw_range)
+        pitch_preds = get_intervals_between(pitch_angles, val=args.pitch_range)
         
         # new 
         blinking_anns = blinking_anns.intersect(yaw_preds)
