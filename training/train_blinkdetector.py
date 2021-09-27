@@ -8,7 +8,8 @@ import pprint
 
 import torch
 torch.multiprocessing.set_sharing_strategy('file_system')
-from torch.nn import MSELoss, CrossEntropyLoss, Sigmoid, Softmax
+from torch.nn import MSELoss, CrossEntropyLoss, Sigmoid
+from torch.utils.data import ConcatDataset
 
 import ignite
 from ignite.engine import Events, Engine
@@ -31,24 +32,42 @@ best_checkpoints_folder = os.path.join(os.path.dirname(__file__), "..", "best_mo
 
 def parser():
     argparser = argparse.ArgumentParser()
-    argparser.add_argument("--annotation_file", default=def_anns_file)
+    argparser.add_argument("--annotation_file", required=True, metavar='N' ,nargs='+')
     argparser.add_argument("--dataset_path", required=True)
+    argparser.add_argument("--model", default="", help="if a correct path to a model is present this model will be retrained")
     argparser.add_argument("--prefix", required=True)
     argparser.add_argument("--channels", required=True, choices=['1C', '2C', '4C'])
     argparser.add_argument("--batch", type=int ,default=4)
     argparser.add_argument("--epoch", type=int ,default=50)
     argparser.add_argument("--normalized", action="store_true")
-    argparser.add_argument("--generate_fnfp_plots", action="store_true")
     
     return argparser.parse_args()
 
 if __name__ == '__main__':
 
     args = parser()
+    print(args.annotation_file)
+    _retrain = False
+    if args.model != "":
+        if len(os.path.basename(args.model).split("_")) == 3:
+            fileprefix, name, step_number =os.path.basename(args.model).split("_")
+            _, prefix, _normalized, _chan, _batch = fileprefix.split("-")
+            args.batch = int(_batch)
+            args.channels = _chan
+            args.normalized = False if _normalized=="False" else True
+            _retrain = True
+        # else:
+        #     prefix, _normalized, _chan, _batch_t = os.path.basename(args.model).split("-")
+        #     _batch, ext = _batch_t.split(".") # epoch
+        #     _batch = "".join(["E", _batch])
+        # normalized = False if _normalized=='False' else True
     BATCH_SIZE = args.batch
     EPOCH = args.epoch
 
-    dataset_name = os.path.basename(os.path.dirname(args.annotation_file))
+    # dataset_name = os.path.basename(os.path.dirname(args.dataset_path))
+    
+    _p = os.path.normpath(args.dataset_path)
+    dataset_name = _p.split(os.sep)[-3]
 
     if args.dataset_path == "":
           _name, _ = os.path.basename(args.annotation_file).split(".")
@@ -79,16 +98,19 @@ if __name__ == '__main__':
     dataset = torch.utils.data.TensorDataset(y, label, duration)
     num_samples = len(dataset)
     """
-    if args.channels == '1C':
-      num_chan = 1
-      dataset = BlinkDataset1C(args.annotation_file, args.normalized) #Dataset class
-    if args.channels == '2C':
-      num_chan = 2
-      dataset = BlinkDataset2C(args.annotation_file, args.normalized) #Dataset class
-    if args.channels == '4C':
-      num_chan = 4
-      dataset = BlinkDataset4C(args.annotation_file, args.normalized) #Dataset class
+    datasets = []
+    for _ann_file in args.annotation_file:
+        if args.channels == '1C':
+            num_chan = 1
+            datasets.append(BlinkDataset1C(_ann_file, args.normalized)) #Dataset class
+        if args.channels == '2C':
+            num_chan = 2
+            datasets.append(BlinkDataset2C(_ann_file, args.normalized)) #Dataset class
+        if args.channels == '4C':
+            num_chan = 4
+            datasets.append(BlinkDataset4C(_ann_file, args.normalized)) #Dataset class
     
+    dataset = ConcatDataset(datasets)
     num_samples = len(dataset)
 
     train_count = int(0.7 * num_samples)
@@ -122,7 +144,11 @@ if __name__ == '__main__':
 
 
     # Initialize the MLP
-    network = BlinkDetector(num_chan).to(device)
+    network = BlinkDetector(num_chan)
+    if _retrain:
+        network.load_state_dict(torch.load(args.model))
+    network.to(device)
+    
     pytorch_total_params = sum(p.numel() for p in network.parameters())
     print("number of model parameters:", pytorch_total_params)
     logging.info(f"number of model parameters: {pytorch_total_params}")
