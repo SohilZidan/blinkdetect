@@ -552,8 +552,11 @@ if __name__=="__main__":
     
     vid_progress.close()
     
-    if args.ratio > 0:
-        ratio = min(len(annotations_1) * args.ratio, len(annotations_0))
+    if args.ratio > 0 and len(annotations_0) > len(annotations_1):
+        ratio = min(int(len(annotations_1) * args.ratio), len(annotations_0))
+        print("1*ratio:", int(len(annotations_1) * args.ratio))
+        print("0:",len(annotations_0))
+        print("1:",len(annotations_1))
         equal_annotation_0 = random.sample(annotations_0, ratio)
         equal_annotation_1 = annotations_1
     elif args.equal:
