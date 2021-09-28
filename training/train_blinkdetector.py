@@ -40,6 +40,7 @@ def parser():
     argparser.add_argument("--batch", type=int ,default=4)
     argparser.add_argument("--epoch", type=int ,default=50)
     argparser.add_argument("--normalized", action="store_true")
+    argparser.add_argument("--earlystopping", required=True, action="store_true")
     
     return argparser.parse_args()
 
@@ -77,7 +78,7 @@ if __name__ == '__main__':
           dataset_path = args.dataset_path
     
     os.makedirs(dataset_path, exist_ok=True)
-    log_file = os.path.join(dataset_path, f"{args.prefix}-{args.normalized}-{args.channels}-{BATCH_SIZE}-softmax.txt")
+    log_file = os.path.join(dataset_path, f"{args.prefix}-{args.normalized}-{args.channels}-{BATCH_SIZE}-{args.earlystopping}-softmax.txt")
     if os.path.exists(log_file):
           os.remove(log_file)
     logging.basicConfig(filename=log_file,  level=logging.INFO)
@@ -319,11 +320,12 @@ if __name__ == '__main__':
     trainer.add_event_handler(Events.COMPLETED, log_testing_results)
 
     # EarlyStopping
-    def score_function(engine):
-        val_loss = engine.state.metrics['F1']
-        return val_loss
-    handler = EarlyStopping(patience=5, score_function=score_function, trainer=trainer)
-    evaluator.add_event_handler(Events.COMPLETED, handler)
+    if args.earlystopping:
+        def score_function(engine):
+            val_loss = engine.state.metrics['F1']
+            return val_loss
+        handler = EarlyStopping(patience=5, score_function=score_function, trainer=trainer)
+        evaluator.add_event_handler(Events.COMPLETED, handler)
 
     # ModelCheckpoint
     checkpointer = ModelCheckpoint(
@@ -345,13 +347,14 @@ if __name__ == '__main__':
     trainer.run(dataloaders['train'], max_epochs=EPOCH)
 
     # print(handler.state_dict())
-    logging.info("early stopping:")
-    logging.info(handler.state_dict())
+    if args.earlystopping:
+        logging.info("early stopping:")
+        logging.info(handler.state_dict())
 
     # save learning curve
     plt.plot(training_losses, 'r', label="training loss")
     plt.plot(validation_losses, 'b',  label="validation loss")
     plt.legend()
-    fig_out_file = os.path.join(dataset_path, f"{args.prefix}-{args.normalized}-{args.channels}-{BATCH_SIZE}-softmax.png")
+    fig_out_file = os.path.join(dataset_path, f"{args.prefix}-{args.normalized}-{args.channels}-{BATCH_SIZE}-{args.earlystopping}-softmax.png")
     plt.savefig(fig_out_file, dpi=300, bbox_inches='tight')
     plt.close()
