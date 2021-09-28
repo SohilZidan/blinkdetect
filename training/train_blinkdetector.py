@@ -40,7 +40,7 @@ def parser():
     argparser.add_argument("--batch", type=int ,default=4)
     argparser.add_argument("--epoch", type=int ,default=50)
     argparser.add_argument("--normalized", action="store_true")
-    argparser.add_argument("--earlystopping", required=True, action="store_true")
+    argparser.add_argument("--earlystopping",action="store_true")
     
     return argparser.parse_args()
 
@@ -160,7 +160,7 @@ if __name__ == '__main__':
     cls_loss = CrossEntropyLoss()
     reg_loss = MSELoss()
     sig = Sigmoid()
-    optimizer = torch.optim.Adam(network.parameters(), lr=1e-4)#, weight_decay=1e-5,amsgrad=True)
+    optimizer = torch.optim.Adam(network.parameters(), lr=1e-4)#, amsgrad=True)
     logging.info(optimizer)
 
     training_losses = []
@@ -320,11 +320,11 @@ if __name__ == '__main__':
     trainer.add_event_handler(Events.COMPLETED, log_testing_results)
 
     # EarlyStopping
+    def score_function(engine):
+        val_loss = engine.state.metrics['F1']
+        return val_loss
     if args.earlystopping:
-        def score_function(engine):
-            val_loss = engine.state.metrics['F1']
-            return val_loss
-        handler = EarlyStopping(patience=5, score_function=score_function, trainer=trainer)
+        handler = EarlyStopping(patience=8, score_function=score_function, trainer=trainer)
         evaluator.add_event_handler(Events.COMPLETED, handler)
 
     # ModelCheckpoint
