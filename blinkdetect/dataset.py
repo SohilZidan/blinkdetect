@@ -39,8 +39,8 @@ class BlinkDataset4C(BlinkDataSet):
     # label = torch.tensor([_signals['is_blink']])
     label = _signals['is_blink']
     # 
-    if _signals['blink_length'] == 0:
-      duration = torch.tensor([_signals['blink_length']], dtype=torch.float32)
+    if int(_signals['is_blink']) == 0:
+      duration = torch.tensor([0], dtype=torch.float32)
     else:
       duration = torch.tensor([_signals['blink_length']], dtype=torch.float32).log_()/3.1355
     # 
