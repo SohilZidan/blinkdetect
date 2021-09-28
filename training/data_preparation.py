@@ -238,7 +238,7 @@ if __name__=="__main__":
                     while _examples < _n_required_examples:
 
                         random_end = random_start+30
-                        if random_end >= _blink.start + _blink.length/2:
+                        if random_end >= _blink.stop:
                             break
 
                         y_eyelids_noblink, _no_blink, _num_noblink = resample_noblink(y_in=eyelids_dist, start=random_start, stop=random_end-1, samples=30)
