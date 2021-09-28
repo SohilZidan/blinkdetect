@@ -52,6 +52,7 @@ if __name__=="__main__":
     parser.add_argument("--equal", action="store_true", help="if set equal numbers of both classes ar generated")
     parser.add_argument("--zero", action="store_true", help="if set no noblink will be generated")
     parser.add_argument("--eval", action="store_true")
+    parser.add_argument("--ratio", type=float, default=0)
     args = parser.parse_args()
     
     print(vars(args))
@@ -551,7 +552,11 @@ if __name__=="__main__":
     
     vid_progress.close()
     
-    if args.equal:
+    if args.ratio > 0:
+         ratio = min(len(annotations_1) * args.ratio, len(annotations_0))
+        equal_annotation_0 = random.sample(annotations_0, ratio)
+        equal_annotation_1 = annotations_1
+    elif args.equal:
         _max_num = min(len(annotations_0), len(annotations_1))
         equal_annotation_0 = random.sample(annotations_0, _max_num)
         equal_annotation_1 = random.sample(annotations_1, _max_num)
