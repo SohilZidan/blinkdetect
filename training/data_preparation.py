@@ -238,7 +238,7 @@ if __name__=="__main__":
                     while _examples < _n_required_examples:
 
                         random_end = random_start+30
-                        if random_end >= _blink.start + _blink.length/2:
+                        if random_end >= _blink.stop:
                             break
 
                         _interval_tmp = blinking_anns.intersect(AnnotationOfIntervals(Unit.INDEX, [Interval(random_start, random_end)]))
