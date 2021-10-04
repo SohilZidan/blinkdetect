@@ -92,7 +92,7 @@ if __name__ == "__main__":
             if len(annotation_paths) != 1:
                 exit()
             annotaions_file_tag = annotation_paths[0]
-            blinking_anns = read_annotations_tag(annotaions_file_tag)
+            closeness_list, blinking_anns = read_annotations_tag(annotaions_file_tag)
         #
         frames = sorted(frames)
         for _frame_d in range(int(frames[0]), int(frames[-1])):
