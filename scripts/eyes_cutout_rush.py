@@ -51,7 +51,7 @@ if __name__ == "__main__":
     for root, dirs, files in os.walk(dataset):
         for dir in files:
             name, ext = os.path.splitext(dir)
-            desired_tags = [".mp4"]
+            desired_tags = [".mp4", ".avi"]
             if ext in desired_tags:
                 videos_paths.append(os.path.join(root, dir))
 
