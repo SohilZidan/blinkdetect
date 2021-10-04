@@ -62,6 +62,9 @@ if __name__ == "__main__":
     vid_progress = tqdm.tqdm(
         list(zip(preds_paths, frames_paths)), total=len(preds_paths),
         desc="participants")
+
+    confusion_matrix_all = None
+
     for preds_path, frames_path in vid_progress:
         video_name = os.path.dirname(preds_path)
         video_name = os.path.relpath(video_name, eyecutouts_folder)
@@ -127,8 +130,11 @@ if __name__ == "__main__":
         print(results[video_name]['metric'])
 
         if args.dataset != "BlinkingValidationSetVideos":
+            if confusion_matrix_all is None:
+                confusion_matrix_all += confusion_matrix(closeness_list, closed_eyes)
             print(confusion_matrix(closeness_list, closed_eyes))
             print(classification_report(closeness_list, closed_eyes))
-
+    if confusion_matrix_all is not None:
+        print(confusion_matrix_all)
     with open(meta_file, "w") as f:
         json.dump(results, f)
