@@ -43,11 +43,15 @@ if __name__ == "__main__":
     args = parse()
     print(args)
     dataset_root = os.path.join(os.path.dirname(__file__), "..", "dataset")
+
+    eyecutouts_folder = os.path.join(dataset_root, "eye-cutouts", args.dataset)
+    dataset_signals_path = os.path.join(dataset_root, "tracked_faces", args.dataset)
+    frames_root = os.path.join(dataset_root, args.dataset)
     if args.dataset == "RN":
-        eyecutouts_folder = os.path.join(dataset_root, "eye-cutouts", args.dataset, "test")
-        dataset_signals_path = os.path.join(dataset_root, "tracked_faces", args.dataset, "test")
-    else:
-        eyecutouts_folder = os.path.join(dataset_root, "eye-cutouts", args.dataset)
+        eyecutouts_folder = os.path.join(eyecutouts_folder, "test")
+        dataset_signals_path = os.path.join(dataset_signals_path, "test")
+        frames_root = os.path.join(frames_root, "test")
+
     meta_file = os.path.join(eyecutouts_folder, "meta.json")
     #
     # video paths
@@ -98,7 +102,7 @@ if __name__ == "__main__":
         if args.dataset == "BlinkingValidationSetVideos":
             blinking_anns = get_blinking_annotation(video_name)
         else:
-            video_path = os.path.join(dataset_root, args.dataset, video_name)
+            video_path = os.path.join(frames_root, video_name)
             annotation_paths = glob.glob(video_path + "/*.tag")
             if len(annotation_paths) != 1:
                 exit()
