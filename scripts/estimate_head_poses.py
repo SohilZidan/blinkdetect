@@ -45,11 +45,13 @@ def main(args):
             name, ext = os.path.splitext(dir)
             if ext in [".avi", ".mov", ".wmv", ".mp4"]:
                 videos_paths.append(os.path.join(root,dir))
+    gpu_mode = args.mode == 'gpu'
+    tddfa = TDDFA(gpu_mode=gpu_mode, **cfg)
     #
-    # 
+    #
     videos_progress = tqdm.tqdm(videos_paths, total=len(videos_paths), desc="head pose")
     for video_path in videos_progress:
-        # input 
+        # input
         video_name = os.path.dirname(video_path)
         video_name = os.path.relpath(video_name, dataset)
         videos_progress.set_postfix(video=video_name)
@@ -57,9 +59,8 @@ def main(args):
         frames_root=os.path.join(os.path.dirname(video_path), "frames")
         if not os.path.exists(frames_root):
             continue
-        # 
+        #
         faces_detection_file_path = os.path.normpath(os.path.join(dataset_root, "faces", args.dataset, video_name, 'faceinfo.pkl'))
-        
         # output
         faces_detection_with_pose_file_path = os.path.normpath(os.path.join(dataset_root,"faces", args.dataset, video_name, output_file_name))
 
@@ -68,8 +69,8 @@ def main(args):
             continue
 
         #
-        gpu_mode = args.mode == 'gpu'
-        tddfa = TDDFA(gpu_mode=gpu_mode, **cfg)
+        #gpu_mode = args.mode == 'gpu'
+        #tddfa = TDDFA(gpu_mode=gpu_mode, **cfg)
         # face_boxes = FaceBoxes()
 
         # load images
