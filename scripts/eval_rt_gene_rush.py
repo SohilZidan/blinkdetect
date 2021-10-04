@@ -45,6 +45,7 @@ if __name__ == "__main__":
     dataset_root = os.path.join(os.path.dirname(__file__), "..", "dataset")
     if args.dataset == "RN":
         eyecutouts_folder = os.path.join(dataset_root, "eye-cutouts", args.dataset, "test")
+        dataset_signals_path = os.path.join(dataset_root, "tracked_faces", args.dataset, "test")
     else:
         eyecutouts_folder = os.path.join(dataset_root, "eye-cutouts", args.dataset)
     meta_file = os.path.join(eyecutouts_folder, "meta.json")
@@ -79,7 +80,7 @@ if __name__ == "__main__":
         # read data
         #
         signals_path = os.path.join(
-            dataset_root, "tracked_faces", args.dataset, video_name, "signals")
+            dataset_signals_path, video_name, "signals")
         faces_not_found_path = os.path.join(signals_path, "face_not_found.pkl")
         yaw_path = os.path.join(signals_path, "yaw_angles.pkl")
         pitch_path = os.path.join(signals_path, "pitch_angles.pkl")
