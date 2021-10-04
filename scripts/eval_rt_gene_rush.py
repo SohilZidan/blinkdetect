@@ -118,7 +118,7 @@ if __name__ == "__main__":
                 closeness_list.append(
                     closeness_list_dict[f"{actual_frame_num:06d}"])
                 closed_eyes_preds.append(closed_eyes[_idx])
-        if args.dataset == "BlinkingValidationSetVideos":
+        if args.dataset != "BlinkingValidationSetVideos":
             closed_eyes = closed_eyes_preds
         # for _idx, _frame in enumerate(frames):
             # if _frame in closeness_list_dict:
