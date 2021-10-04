@@ -138,6 +138,7 @@ if __name__ == "__main__":
                 print(classification_report(closeness_list, closed_eyes))
         except Exception as e:
             print("exception at", video_name)
+            raise(e)
     if confusion_matrix_all is not None:
         print(confusion_matrix_all)
     with open(meta_file, "w") as f:
