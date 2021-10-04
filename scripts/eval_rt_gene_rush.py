@@ -110,7 +110,12 @@ if __name__ == "__main__":
                     + [[False]]
                     + closed_eyes[_idx:]
                     )
-            closeness_list.append(closeness_list_dict[_frame])
+            # because frames files names start from 1
+            # annotations start from 0
+            actual_frame_num = int(_frame) - 1
+            
+            closeness_list.append(
+                closeness_list_dict[f"{actual_frame_num:06d}"])
             closed_eyes_preds.append(closed_eyes[_idx])
 
         closed_eyes = closed_eyes_preds
