@@ -66,6 +66,8 @@ if __name__ == "__main__":
 
     confusion_matrix_all = None
 
+    all_anns = 0
+
     for preds_path, frames_path in vid_progress:
         video_name = os.path.dirname(preds_path)
         video_name = os.path.relpath(video_name, eyecutouts_folder)
@@ -98,6 +100,7 @@ if __name__ == "__main__":
                 exit()
             annotaions_file_tag = annotation_paths[0]
             closeness_list_dict, blinking_anns = read_annotations_tag(annotaions_file_tag)
+            all_anns += len(closeness_list_dict)
         #
         frames = sorted(frames)
         # for _frame_d in range(int(frames[0]), int(frames[-1])):
@@ -154,5 +157,6 @@ if __name__ == "__main__":
 
     if confusion_matrix_all is not None:
         print(confusion_matrix_all)
+    print("annotated frames:", all_anns)
     with open(meta_file, "w") as f:
         json.dump(results, f)
