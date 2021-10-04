@@ -9,6 +9,7 @@ from argusutil.evaluation import IoUStrictMatchConfMat, FMeasure
 from blinkdetect.argus_utils import get_intervals, get_intervals_between
 from blinkdetect.argus_utils import get_blinking_annotation
 from blinkdetect.common import read_annotations_tag
+from sklearn.metrics import classification_report
 
 
 def parse():
@@ -124,6 +125,9 @@ if __name__ == "__main__":
             }
         # "preds": blink_preds, "gt": blinking_anns,
         print(results[video_name]['metric'])
+
+        if args.dataset != "BlinkingValidationSetVideos":
+            print(classification_report(closeness_list, closed_eyes))
 
     with open(meta_file, "w") as f:
         json.dump(results, f)
