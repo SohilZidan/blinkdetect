@@ -131,6 +131,8 @@ if __name__ == "__main__":
 
         if args.dataset != "BlinkingValidationSetVideos":
             if confusion_matrix_all is None:
+                confusion_matrix_all = confusion_matrix(closeness_list, closed_eyes)
+            else:
                 confusion_matrix_all += confusion_matrix(closeness_list, closed_eyes)
             print(confusion_matrix(closeness_list, closed_eyes))
             print(classification_report(closeness_list, closed_eyes))
