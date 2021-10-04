@@ -59,10 +59,10 @@ def read_annotations_tag(input_file: str):
         
         # if current annotation consist fully closed eyes, append it also to "closeness_list" 
         if current_annotation[3] == "C" and current_annotation[5] == "C":
-            closeness_list[f"{current_annotation[0]:06d}"] = 1
+            closeness_list[f"{int(current_annotation[0]):06d}"] = 1
         
         else:
-            closeness_list[f"{current_annotation[0]:06d}"] = 0
+            closeness_list[f"{int(current_annotation[0]):06d}"] = 0
     
     file1.close()
     blinks_intervals = AnnotationOfIntervals(Unit.INDEX, blink_list)
