@@ -128,14 +128,16 @@ if __name__ == "__main__":
             }
         # "preds": blink_preds, "gt": blinking_anns,
         print(results[video_name]['metric'])
-
-        if args.dataset != "BlinkingValidationSetVideos":
-            if confusion_matrix_all is None:
-                confusion_matrix_all = confusion_matrix(closeness_list, closed_eyes)
-            else:
-                confusion_matrix_all += confusion_matrix(closeness_list, closed_eyes)
-            print(confusion_matrix(closeness_list, closed_eyes))
-            print(classification_report(closeness_list, closed_eyes))
+        try:
+            if args.dataset != "BlinkingValidationSetVideos":
+                if confusion_matrix_all is None:
+                    confusion_matrix_all = confusion_matrix(closeness_list, closed_eyes)
+                else:
+                    confusion_matrix_all += confusion_matrix(closeness_list, closed_eyes)
+                print(confusion_matrix(closeness_list, closed_eyes))
+                print(classification_report(closeness_list, closed_eyes))
+        except Exception as e:
+            print("exception at", video_name)
     if confusion_matrix_all is not None:
         print(confusion_matrix_all)
     with open(meta_file, "w") as f:
