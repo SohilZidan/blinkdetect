@@ -19,6 +19,7 @@
 * `git submodule update --init --recursive`
 * cd <project url>
 * sh ./build.sh
+* export PYTHONPATH=<path of the repo>
 
 ### Preprocessing Steps
 1. generate frames of the videos
