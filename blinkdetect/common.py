@@ -62,7 +62,7 @@ def read_annotations_tag(input_file: str):
             closeness_list[f"{current_annotation[0]:06d}"] = 1
         
         else:
-            closeness_list.append(0)
+            closeness_list[f"{current_annotation[0]:06d}"] = 0
     
     file1.close()
     blinks_intervals = AnnotationOfIntervals(Unit.INDEX, blink_list)
