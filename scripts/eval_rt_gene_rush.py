@@ -130,10 +130,11 @@ if __name__ == "__main__":
         yaw_preds = get_intervals_between(yaw_angles, val=args.yaw_range)
         pitch_preds = get_intervals_between(pitch_angles, val=args.pitch_range)
         #
-        blink_preds = get_intervals(closed_eyes, val=1, start_idx=int(frames[0]))
+        blink_preds = get_intervals(closed_eyes, val=1)
         blink_preds = blink_preds.intersect(face_found_anns)
         blink_preds = blink_preds.intersect(yaw_preds)
         blink_preds = blink_preds.intersect(pitch_preds)
+        blink_preds = blink_preds.shift(int(frames[0])-1)
         #
         blinking_anns = blinking_anns.intersect(face_found_anns)
         blinking_anns = blinking_anns.intersect(yaw_preds)
