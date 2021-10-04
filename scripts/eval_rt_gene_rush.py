@@ -143,7 +143,7 @@ if __name__ == "__main__":
         results[video_name] = {
             "metric": evaluate(blink_preds, blinking_anns)
             }
-        # "preds": blink_preds, "gt": blinking_anns,
+        print(list(zip(blink_preds, blinking_anns)))
         print(results[video_name]['metric'])
         if args.dataset != "BlinkingValidationSetVideos":
             if confusion_matrix_all is None:
