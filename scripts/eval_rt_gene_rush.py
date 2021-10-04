@@ -43,7 +43,10 @@ if __name__ == "__main__":
     args = parse()
     print(args)
     dataset_root = os.path.join(os.path.dirname(__file__), "..", "dataset")
-    eyecutouts_folder = os.path.join(dataset_root, "eye-cutouts", args.dataset)
+    if args.dataset == "RN":
+        eyecutouts_folder = os.path.join(dataset_root, "eye-cutouts", args.dataset, "test")
+    else:
+        eyecutouts_folder = os.path.join(dataset_root, "eye-cutouts", args.dataset)
     meta_file = os.path.join(eyecutouts_folder, "meta.json")
     #
     # video paths
