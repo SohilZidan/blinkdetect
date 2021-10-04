@@ -1,3 +1,4 @@
+from pandas.core import frame
 import tqdm
 import json
 import os
@@ -96,17 +97,26 @@ if __name__ == "__main__":
             if len(annotation_paths) != 1:
                 exit()
             annotaions_file_tag = annotation_paths[0]
-            closeness_list, blinking_anns = read_annotations_tag(annotaions_file_tag)
+            closeness_list_dict, blinking_anns = read_annotations_tag(annotaions_file_tag)
         #
         frames = sorted(frames)
-        for _frame_d in range(int(frames[0]), int(frames[-1])):
-            _frame = f"{_frame_d:06d}"
+        # for _frame_d in range(int(frames[0]), int(frames[-1])):
+        closeness_list = []
+        closed_eyes_preds = []
+        for _idx, _frame in enumerate(frames):
             if _frame not in frames:
                 closed_eyes = (
-                    closed_eyes[:_frame_d-1]
+                    closed_eyes[:_idx]
                     + [[False]]
-                    + closed_eyes[_frame_d-1:]
+                    + closed_eyes[_idx:]
                     )
+            closeness_list.append(closeness_list_dict[_frame])
+            closed_eyes_preds.append(closed_eyes[_idx])
+
+        closed_eyes = closed_eyes_preds
+        # for _idx, _frame in enumerate(frames):
+            # if _frame in closeness_list_dict:
+
         closed_eyes = [i for sublist in closed_eyes for i in sublist]
         closed_eyes = (1 * np.array(closed_eyes)).tolist()
         #
@@ -114,7 +124,7 @@ if __name__ == "__main__":
         yaw_preds = get_intervals_between(yaw_angles, val=args.yaw_range)
         pitch_preds = get_intervals_between(pitch_angles, val=args.pitch_range)
         #
-        blink_preds = get_intervals(closed_eyes, val=1)
+        blink_preds = get_intervals(closed_eyes, val=1, start_idx=int(frames[0]))
         blink_preds = blink_preds.intersect(face_found_anns)
         blink_preds = blink_preds.intersect(yaw_preds)
         blink_preds = blink_preds.intersect(pitch_preds)
