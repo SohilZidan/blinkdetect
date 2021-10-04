@@ -110,7 +110,7 @@ if __name__ == "__main__":
                     + [[False]]
                     + closed_eyes[_idx:]
                     )
-            if args.dataset == "BlinkingValidationSetVideos":
+            if args.dataset != "BlinkingValidationSetVideos":
                 # because frames files names start from 1
                 # annotations start from 0
                 actual_frame_num = int(_frame) - 1
