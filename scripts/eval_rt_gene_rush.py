@@ -110,15 +110,16 @@ if __name__ == "__main__":
                     + [[False]]
                     + closed_eyes[_idx:]
                     )
-            # because frames files names start from 1
-            # annotations start from 0
-            actual_frame_num = int(_frame) - 1
-            
-            closeness_list.append(
-                closeness_list_dict[f"{actual_frame_num:06d}"])
-            closed_eyes_preds.append(closed_eyes[_idx])
-
-        closed_eyes = closed_eyes_preds
+            if args.dataset == "BlinkingValidationSetVideos":
+                # because frames files names start from 1
+                # annotations start from 0
+                actual_frame_num = int(_frame) - 1
+                
+                closeness_list.append(
+                    closeness_list_dict[f"{actual_frame_num:06d}"])
+                closed_eyes_preds.append(closed_eyes[_idx])
+        if args.dataset == "BlinkingValidationSetVideos":
+            closed_eyes = closed_eyes_preds
         # for _idx, _frame in enumerate(frames):
             # if _frame in closeness_list_dict:
 
@@ -143,17 +144,14 @@ if __name__ == "__main__":
             }
         # "preds": blink_preds, "gt": blinking_anns,
         print(results[video_name]['metric'])
-        try:
-            if args.dataset != "BlinkingValidationSetVideos":
-                if confusion_matrix_all is None:
-                    confusion_matrix_all = confusion_matrix(closeness_list, closed_eyes)
-                else:
-                    confusion_matrix_all += confusion_matrix(closeness_list, closed_eyes)
-                print(confusion_matrix(closeness_list, closed_eyes))
-                print(classification_report(closeness_list, closed_eyes))
-        except Exception as e:
-            print("exception at", video_name)
-            raise(e)
+        if args.dataset != "BlinkingValidationSetVideos":
+            if confusion_matrix_all is None:
+                confusion_matrix_all = confusion_matrix(closeness_list, closed_eyes)
+            else:
+                confusion_matrix_all += confusion_matrix(closeness_list, closed_eyes)
+            print(confusion_matrix(closeness_list, closed_eyes))
+            print(classification_report(closeness_list, closed_eyes))
+
     if confusion_matrix_all is not None:
         print(confusion_matrix_all)
     with open(meta_file, "w") as f:
