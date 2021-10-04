@@ -21,7 +21,8 @@ def read_annotations_tag(input_file: str):
     blink_end = 1
     blink_info = (0,0)
     blink_list = []
-    closeness_list = []
+    closeness_list = {}
+    
 
     # Using readlines() 
     file1 = open(input_file, "r", encoding="utf-8") 
@@ -58,7 +59,7 @@ def read_annotations_tag(input_file: str):
         
         # if current annotation consist fully closed eyes, append it also to "closeness_list" 
         if current_annotation[3] == "C" and current_annotation[5] == "C":
-            closeness_list.append(1)
+            closeness_list[f"{current_annotation[0]:06d}"] = 1
         
         else:
             closeness_list.append(0)
