@@ -8,7 +8,7 @@ import sys
 lib_dir = os.path.join(os.path.dirname(__file__), "..")
 sys.path.append(lib_dir)
 
-from blinkdetect.common import read_bbox_tag
+from blinkdetect.common import read_bbox_tag, read_bbox_rush
 
 dataset_root = os.path.join(os.path.dirname(__file__), "..", "dataset")
 
@@ -23,13 +23,13 @@ def extract_faces(annotations, all_detections):
     _detections = {}
 
     for _name in tqdm.tqdm(all_detections.keys(), total=len(all_detections.keys()), leave=False, desc="frame"):
-        _frame = f"{int(_name)-1:06d}"
+        _frame = f"{int(_name):06d}"
         # face detected
         dets = all_detections[_name]['faces']
         if type(dets) is tuple or _frame not in annotations:
             _detections[_name]={
-                "faces": dets, 
-                "faces_not_found": 1, 
+                "faces": dets,
+                "faces_not_found": 1,
                 "faces_number": 0
             }
             continue
@@ -49,15 +49,14 @@ def extract_faces(annotations, all_detections):
             if _norm < min_norm:
                 min_norm = _norm
                 final_dets['face_1'] = dets[face_id]
-        
+
         _detections[_name]={
-            "faces": final_dets, 
-            "faces_not_found": all_detections[_name]['faces_not_found'], 
+            "faces": final_dets,
+            "faces_not_found": all_detections[_name]['faces_not_found'],
             "faces_number": 1
         }
 
     return _detections
-
 
 
 if __name__=="__main__":
@@ -71,7 +70,11 @@ if __name__=="__main__":
     for root,dirs, files in os.walk(dataset):
         for dir in files:
             name, ext = os.path.splitext(dir)
-            if ext in [".tag"]:
+            if args.dataset == "BlinkingValidationSetVideos":
+                desired_tags = [".json"]
+            else:
+                desired_tags = [".tag"]
+            if ext in desired_tags:
                 videos_paths.append(os.path.join(root,dir))
     #
     # 
@@ -93,7 +96,10 @@ if __name__=="__main__":
         with open( faceinfo_file_path_pkl, "rb" ) as pkl_file:
             all_detections = pickle.load(pkl_file)
         # annotations
-        annotations = read_bbox_tag(video_path)
+        if args.dataset == "BlinkingValidationSetVideos":
+            annotations = read_bbox_rush(video_path)
+        else:
+            annotations = read_bbox_tag(video_path)
         
         # alignment
         _new_detections = extract_faces(annotations=annotations, all_detections=all_detections)

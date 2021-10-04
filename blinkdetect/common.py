@@ -1,6 +1,7 @@
 import os
 import numpy as np
 from argusutil.annotation.annotation import AnnotationOfIntervals, Interval, Unit
+import json
 
 def flip_signal(y):
     _mean = np.mean(y)
@@ -74,19 +75,16 @@ def read_bbox_tag(input_file: str):
     """
     name, ext = os.path.splitext(input_file)
     assert ext==".tag", "file extension is not .tag"
-    # define variables 
-    
-    
-
+    # define variables
     detections = {}
 
-    # Using readlines() 
-    file1 = open(input_file, "r", encoding="utf-8") 
-    Lines = file1.readlines() 
+    # Using readlines()
+    file1 = open(input_file, "r", encoding="utf-8")
+    Lines = file1.readlines()
 
-    # find "#start" line 
+    # find "#start" line
     start_line = 1
-    for line in Lines: 
+    for line in Lines:
         clean_line=line.strip()
         if clean_line=="#start":
             break
@@ -123,5 +121,20 @@ def read_bbox_tag(input_file: str):
     file1.close()
 
     return detections
-    
-    
+
+def read_bbox_rush(video_path):
+    assert os.path.exists(video_path), f"{video_path} does not exist"
+    with open(video_path, "r") as f:
+        data = json.load(f)
+
+    detections = {}
+    for i in range(0,len(data)):
+        if not data[i]['tracker_result']['successful']: continue
+
+        facial_markers = np.array(data[i]['tracker_result']['face'])[:,:2]
+        X, Y = np.min(facial_markers, axis=0).astype(np.int)
+        X1, Y1 = np.max(facial_markers, axis=0).astype(np.int)
+        bbox = [X, Y, X1-X, Y1-Y] # bbox = np.array([X,Y,X1-X,Y1-Y],dtype=np.int)
+        detections[f"{i+1:06d}"] = bbox
+
+    return detections
