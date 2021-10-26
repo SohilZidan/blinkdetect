@@ -52,22 +52,23 @@ class IrisMarker(object):
 
         self.iris_net = IrisLandmarks().to(gpu1)
         self.iris_net.load_weights(iris_path)
-    
+
+
     def expand_bbox(self, bbox_org: List, img: np.ndarray):
         H = bbox_org[3] - bbox_org[1]
         W = bbox_org[2] - bbox_org[0]
-        #
-        up = int(bbox_org[1]-self._expansion_ratio*H)
-        down = int(bbox_org[3]+self._expansion_ratio*H)
-        left = int(bbox_org[0]-self._expansion_ratio*W)
-        right = int(bbox_org[2]+self._expansion_ratio*W)
-        #
+
+        up = int(bbox_org[1] - self._expansion_ratio * H)
+        down = int(bbox_org[3] + self._expansion_ratio * H)
+        left = int(bbox_org[0] - self._expansion_ratio * W)
+        right = int(bbox_org[2] + self._expansion_ratio * W)
+
         up = up if up > 0 else 0
         down = down if down < img.shape[0] else img.shape[0]
-        left = left if right > 0 else 0
+        left = left if left > 0 else 0
         right = right if right < img.shape[1] else img.shape[1]
         bbox_m = [left, up, right, down]
-    
+
         return bbox_m
     
     def overlay_image(self, img: np.ndarray, transform = False):
@@ -90,12 +91,9 @@ class IrisMarker(object):
         bbox_org = faces['face_1']['facial_area']
         left_eye = faces['face_1']['landmarks']['left_eye']
         right_eye = faces['face_1']['landmarks']['right_eye']
-        # nose = faces['face_1']['landmarks']['nose']
         # facial_img_org = img[bbox_org[1]:bbox_org[3], bbox_org[0]:bbox_org[2]]
         # margin
         bbox_m = self.expand_bbox(bbox_org, img)
-        # [up:down,left:right]
-        # left, up, right, down
         facial_img_m = img[bbox_m[1]:bbox_m[3], bbox_m[0]:bbox_m[2]]
         # alignment
         aligned_facial_img = alignment_procedure(facial_img_m, left_eye, right_eye)
