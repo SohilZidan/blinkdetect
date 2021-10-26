@@ -58,11 +58,10 @@ def read_annotations_tag(input_file: str):
                 blink_list.append(blink_info)
         
         # if current annotation consist fully closed eyes, append it also to "closeness_list" 
-        if current_annotation[3] == "C" and current_annotation[5] == "C":
-            closeness_list[f"{int(current_annotation[0]):06d}"] = 1
-        
+        if (current_annotation[3] == "C" and current_annotation[5] == "C"):
+            closeness_list[f"{int(current_annotation[0]):06d}"] = 1.
         else:
-            closeness_list[f"{int(current_annotation[0]):06d}"] = 0
+            closeness_list[f"{int(current_annotation[0]):06d}"] = 0.
     
     file1.close()
     blinks_intervals = AnnotationOfIntervals(Unit.INDEX, blink_list)
@@ -71,7 +70,7 @@ def read_annotations_tag(input_file: str):
     
     
 
-def read_bbox_tag(input_file: str):
+def read_bbox_tag(input_file: str, mode: str="XYWH"):
     """read annotations by blinkmatters.com
     """
     name, ext = os.path.splitext(input_file)
@@ -107,7 +106,10 @@ def read_bbox_tag(input_file: str):
         F_Y = int(current_annotation[8]) #8 -- y
         F_W = int(current_annotation[9]) #9 -- width
         F_H = int(current_annotation[10]) #10 -- height
-        bbox = [F_X, F_Y, F_W, F_H]
+        if mode == "XYWH":
+            bbox = [F_X, F_Y, F_W, F_H]
+        elif mode == "XYXY":
+            bbox = [F_X, F_Y, F_X + F_W, F_Y + F_H]
         # #
         # LE_LX : 11
         # LE_LY : 12
