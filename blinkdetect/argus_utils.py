@@ -19,18 +19,43 @@ def annotation_for_name(name, annotation_predictions, path):
     return deserializeAnnotation(json.load(open(path.joinpath([annotation_file for annotation_file in annotation_predictions if name in annotation_file][0]), "r")))
 
 def get_blinking_annotation(pid: str):
+    """get blinking annotation for rush videos shifted to zero
 
-    # assert pid.strip() in VIDEO_IDS, f"participant {pid} not available"
+    Args:
+        pid (str): [description]
 
-    gt_blinking_annotation = deserializeAnnotation(json.load(
-            open(os.path.join(dataset,"gt_index", f"aniko_annot_{pid}_blinking.json"), "r")))
-    
+    Returns:
+        [type]: [description]
+    """
+    file_path = os.path.join(dataset,"gt_index", f"aniko_annot_{pid}_blinking.json")
+    assert os.path.exists(file_path), f"participant {pid} not available"
+    gt_blinking_annotation = deserializeAnnotation(json.load(open(file_path, "r")))
+
+    # read start and frame indices for annotations
     gt_start_end = pd.read_csv(gt_start_end_index_path)
 
     gt_start_v = gt_start_end[gt_start_end["subject"] == int(pid)]["gt_start_index"].iat[0]
     gt_stop_v = gt_start_end[gt_start_end["subject"] == int(pid)]["gt_stop_index"].iat[0]
 
     return gt_blinking_annotation.slice(gt_start_v, gt_stop_v, sliceIntervalsOnEdge=True, shiftToZero=True)
+
+
+def get_closed_eye_annotations(pid: str):
+    """
+    return only closed-eye frames indices
+    """
+    blink_anns = get_blinking_annotation(pid)
+    # set of closed eyes frames
+    closed_eyes = set()
+    for _interval in blink_anns:
+        start = int(_interval.start)
+        stop = int(_interval.stop)
+        for i in range(start, stop):
+            closed_eyes.add(i+1)
+
+    return closed_eyes
+    
+
 
 def get_intervals(binary_signal: List, start_idx:int=0, val:int=0):
     """get intervals from a singal that correspond to the consecutive same value `val`
