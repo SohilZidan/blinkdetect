@@ -3,6 +3,7 @@ import numpy as np
 from argusutil.annotation.annotation import AnnotationOfIntervals, Interval, Unit
 import json
 
+
 def flip_signal(y):
     _mean = np.mean(y)
     inv_data_y = (y-_mean)*(-1) + _mean
@@ -66,9 +67,7 @@ def read_annotations_tag(input_file: str):
     file1.close()
     blinks_intervals = AnnotationOfIntervals(Unit.INDEX, blink_list)
     return closeness_list, blinks_intervals
-    
-    
-    
+
 
 def read_bbox_tag(input_file: str, mode: str="XYWH"):
     """read annotations by blinkmatters.com
@@ -125,7 +124,8 @@ def read_bbox_tag(input_file: str, mode: str="XYWH"):
 
     return detections
 
-def read_bbox_rush(video_path):
+
+def read_bbox_rush(video_path, mode: str="XYWH"):
     assert os.path.exists(video_path), f"{video_path} does not exist"
     with open(video_path, "r") as f:
         data = json.load(f)
@@ -137,7 +137,10 @@ def read_bbox_rush(video_path):
         facial_markers = np.array(data[i]['tracker_result']['face'])[:,:2]
         X, Y = np.min(facial_markers, axis=0).astype(np.int)
         X1, Y1 = np.max(facial_markers, axis=0).astype(np.int)
-        bbox = [X, Y, X1-X, Y1-Y] # bbox = np.array([X,Y,X1-X,Y1-Y],dtype=np.int)
+        if mode == "XYWH":
+            bbox = [X, Y, X1-X, Y1-Y]
+        elif mode == "XYXY":
+            bbox = [X, Y, X1, Y1]
         detections[f"{i+1:06d}"] = bbox
 
     return detections
