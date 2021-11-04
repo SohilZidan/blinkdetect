@@ -4,22 +4,23 @@ import shutil
 import cv2
 import torch
 import numpy as np
+import pandas as pd
 from retinaface import RetinaFace
 from retinaface.commons.postprocess import alignment_procedure
 import matplotlib.pyplot as plt
 import tqdm
 from typing import List, Union
-print("PyTorch version:", torch.__version__)
-print("CUDA version:", torch.version.cuda)
-print("cuDNN version:", torch.backends.cudnn.version())
-print("OpenCV version:", cv2.__version__)
+# print("PyTorch version:", torch.__version__)
+# print("CUDA version:", torch.version.cuda)
+# print("cuDNN version:", torch.backends.cudnn.version())
+# print("OpenCV version:", cv2.__version__)
 # torch.cuda.device_count()
-gpu0 = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-gpu1 = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+gpu0 = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+gpu1 = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
 
 from blinkdetect.models.facemesh import FaceMesh
 from blinkdetect.models.irislandmarks import IrisLandmarks
-from blinkdetect.metrics.distance import eyelids_directed_hausdorff
+from blinkdetect.metrics.distance import eyelids_directed_hausdorff, iris_diameter
 
 FACE_MESH_MODEL_PATH = os.path.join(
     os.path.dirname(__file__), "..", "..", "models", "facemesh.pth")
@@ -44,8 +45,9 @@ class IrisHandler(object):
         self,
         facemesh_path: str = FACE_MESH_MODEL_PATH, iris_path: str = IRIS_MODEL_PATH,
         face_detector: bool=True):
-        super(IrisMarker, self).__init__()
+        super(IrisHandler, self).__init__()
 
+        # requires BGR
         if face_detector:
             self.model = RetinaFace.build_model()
         else:
@@ -53,9 +55,11 @@ class IrisHandler(object):
 
         self._expansion_ratio = 0.25
 
+        # requires RGB
         self.facemesh_net = FaceMesh().to(gpu0)
         self.facemesh_net.load_weights(facemesh_path)
 
+        # requires RGB
         self.iris_net = IrisLandmarks().to(gpu1)
         self.iris_net.load_weights(iris_path)
 
@@ -88,20 +92,19 @@ class IrisHandler(object):
 
 
     def cut_face(self, img_path: Union[np.ndarray, str], bbox: List) -> np.ndarray:
-        assert isinstance(img_path, str) or isinstance(img_path, np.ndarray), 
-            "not a supported type"
+        assert isinstance(img_path, str) or isinstance(img_path, np.ndarray), "not a supported type"
         if isinstance(img_path, str):
             success = os.path.exists(img_path)
             if not success:
                 return success, np.array([])
-            img = cv2.imread(img_path)
+            img = cv2.imread(img_path, cv2.IMREAD_COLOR)
         else:  # ndarray
             success = (img_path.size > 0)
             if not success:
                 return False, np.array([])
             img = img_path.copy()
 
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
         # cut the face
         facial_img = img[bbox[1]:bbox[3], bbox[0]: bbox[2]]
@@ -363,7 +366,7 @@ class IrisHandler(object):
         return outputDF, processed_images, frames_names#, _means, _stds, _eyelids_dists
 
 
-    def overlay_image(self, img: np.ndarray, transform = False):
+    def overlay_image(self, img: np.ndarray, transform = False, eyelids = True, iris = True):
         """This expects input to be RGB if transform is False.
         if transform is True, It will convert the input into RGB
 
@@ -373,9 +376,9 @@ class IrisHandler(object):
         """
         assert self.model is not None, "this version does not support other bounding boxes formats"
 
-        if transform:
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        # check validity
+        if not transform:
+            img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+
         faces = RetinaFace.detect_faces(img, model=self.model)
         if type(faces) is tuple:
             return img
@@ -388,34 +391,162 @@ class IrisHandler(object):
         bbox_m = self.expand_bbox(bbox_org, img)
 
         # cut face
-        sucess, facial_img_m = cut_face(img, bbox_m)
+        sucess, facial_img_m = self.cut_face(img, bbox_m)
 
         # alignment
         aligned_facial_img = alignment_procedure(facial_img_m, left_eye_pt, right_eye_pt)
 
+        if transform:
+            aligned_facial_img = cv2.cvtColor(aligned_facial_img, cv2.COLOR_BGR2RGB)
         # eyes landmarks
         resp = self.extract_eye_landmarks(aligned_facial_img)
+        # 
+        aligned_facial_img_eyelids = aligned_facial_img.copy()
+        aligned_facial_img_iris = aligned_facial_img.copy()
 
         for eye_key in resp:
             org_eye, org_iris = resp[eye_key]
 
+            # draw eyelids
+            if eyelids:
+                
+                for i in range(1, 16):
+                    center = org_eye[0, i, 0:2].astype(np.int)
+                    aligned_facial_img_eyelids = cv2.circle(aligned_facial_img_eyelids, (center[0], center[1]), radius=0, color=(255, 255, 100), thickness=2)
+
             # draw iris landmarks
-            for i in range(5):
-                center = org_iris[i,0:2].astype(np.int)
-                aligned_facial_img = cv2.circle(aligned_facial_img, (center[0], center[1]), radius=0, color=(255, 0, 0), thickness=2)
+            if iris:
+                for i in range(5):
+                    center = org_iris[i,0:2].astype(np.int)
+                    aligned_facial_img_iris = cv2.circle(aligned_facial_img_iris, (center[0], center[1]), radius=0, color=(255, 0, 0), thickness=2)
+
+                # draw pupil circle
+                h_diameter = np.linalg.norm(org_iris[1,:] - org_iris[3,:])
+                v_diameter = np.linalg.norm(org_iris[2,:] - org_iris[4,:])
+                # h_diameters.append(h_diameter)
+                # v_diameters.append(v_diameter)
+                pupil_center = org_iris[0,0:2].astype(np.int)
+                aligned_facial_img_iris = cv2.circle(aligned_facial_img_iris, (pupil_center[0], pupil_center[1]), radius=round(min(h_diameter, v_diameter)/2), color=(0, 0, 255), thickness=1)
+
+        aligned_facial_img = np.hstack([aligned_facial_img, aligned_facial_img_iris, aligned_facial_img_eyelids])
+        return aligned_facial_img
+
+
+    def compute_optFlow(self, prev_gray: np.ndarray, current_frame: np.ndarray):
+        mask = np.zeros_like(current_frame)
+        # Sets image saturation to maximum
+        mask[..., 1] = 255
+        if prev_gray is None:
+            return mask
+
+        current_gray = cv2.cvtColor(current_frame, cv2.COLOR_BGR2GRAY)
+        # Calculates dense optical flow by Farneback method
+        flow = cv2.calcOpticalFlowFarneback(prev_gray, current_gray, 
+                                        None,
+                                        0.5, 3, 15, 3, 5, 1.2, 0)
+
+        # Computes the magnitude and angle of the 2D vectors
+        magnitude, angle = cv2.cartToPolar(flow[..., 0], flow[..., 1])
+
+        # Sets image hue according to the optical flow 
+        # direction
+        mask[..., 0] = angle * 180 / np.pi / 2
+        
+        # Sets image value according to the optical flow
+        # magnitude (normalized)
+        mask[..., 2] = cv2.normalize(magnitude, None, 0, 255, cv2.NORM_MINMAX)
+
+        # Converts HSV to RGB (BGR) color representation
+        rgb = cv2.cvtColor(mask, cv2.COLOR_HSV2BGR)
+        
+        # Opens a new window and displays the output frame
+        return rgb
+
+
+    def analyze(self, img: np.ndarray, prev_img: np.ndarray = None, transform = False, eyelids = True, iris = True):
+        """
+        This expects input to be RGB if transform is False.
+        if transform is True, It will convert the input into RGB
+
+        Args:
+            img (np.ndarray): [description]
+            transform (bool, optional): Defaults to False.
+            eyelids (bool, optional): whether to draw eyelids or not. Defaults to True.
+            iris (bool, optional): whether to draw iris or not. Defaults to True.
+
+        Returns:
+            [type]: [description]
+        """
+
+        assert self.model is not None, "this version does not support other bounding boxes formats"
+
+        if not transform:
+            img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+
+        # compute optical flow
+        if prev_img is None:
+            prev_gray = prev_img
+        else:
+            prev_gray = cv2.cvtColor(prev_img, cv2.COLOR_BGR2GRAY)
+        current_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        mask_OF = self.compute_optFlow(prev_gray, img)
+
+        faces = RetinaFace.detect_faces(img, model=self.model)
+        if type(faces) is tuple:
+            return img
+        # in case there is a face take the first one
+        bbox_org = faces['face_1']['facial_area']
+        left_eye_pt = faces['face_1']['landmarks']['left_eye']
+        right_eye_pt = faces['face_1']['landmarks']['right_eye']
+
+        # margin
+        bbox_m = self.expand_bbox(bbox_org, img)
+
+        # cut face
+        sucess, facial_img_m = self.cut_face(img, bbox_m)
+        _, mask_OF = self.cut_face(mask_OF, bbox_m)
+
+        # alignment
+        aligned_facial_img = alignment_procedure(facial_img_m, left_eye_pt, right_eye_pt)
+
+        if transform:
+            aligned_facial_img = cv2.cvtColor(aligned_facial_img, cv2.COLOR_BGR2RGB)
+        # eyes landmarks
+        resp = self.extract_eye_landmarks(aligned_facial_img)
+        # 
+        aligned_facial_img_eyelids = aligned_facial_img.copy()
+        aligned_facial_img_iris = aligned_facial_img.copy()
+
+        eyelidsDistances = dict.fromkeys(resp.keys())
+        irisesDiameters = dict.fromkeys(resp.keys())
+
+        for eye_key in resp:
+            org_eye, org_iris = resp[eye_key]
+
+            eyelidsDistances[eye_key] = eyelids_directed_hausdorff(set1_indices=[1,8], set2_indices=[9,16], landmarks=org_eye)
+            irisesDiameters[eye_key] = iris_diameter(org_iris)
 
             # draw eyelids
-            for i in range(1, 16):
-                center = org_eye[0, i, 0:2].astype(np.int)
-                aligned_facial_img = cv2.circle(aligned_facial_img, (center[0], center[1]), radius=0, color=(255, 255, 100), thickness=2)
+            if eyelids:
+                
+                for i in range(1, 16):
+                    center = org_eye[0, i, 0:2].astype(np.int)
+                    aligned_facial_img_eyelids = cv2.circle(aligned_facial_img_eyelids, (center[0], center[1]), radius=0, color=(255, 255, 100), thickness=1)
 
-            # draw pupil circle
-            h_diameter = np.linalg.norm(org_iris[1,:] - org_iris[3,:])
-            v_diameter = np.linalg.norm(org_iris[2,:] - org_iris[4,:])
-            # h_diameters.append(h_diameter)
-            # v_diameters.append(v_diameter)
-            pupil_center = org_iris[0,0:2].astype(np.int)
-            aligned_facial_img = cv2.circle(aligned_facial_img, (pupil_center[0], pupil_center[1]), radius=round(min(h_diameter, v_diameter)/2), color=(0, 0, 255), thickness=1)
+            # draw iris landmarks
+            if iris:
+                # for i in range(5):
+                #     center = org_iris[i,0:2].astype(np.int)
+                #     aligned_facial_img_iris = cv2.circle(aligned_facial_img_iris, (center[0], center[1]), radius=0, color=(255, 0, 0), thickness=2)
 
-        img = cv2.cvtColor(aligned_facial_img, cv2.COLOR_RGB2BGR)
-        return img
+                # draw pupil circle
+                h_diameter = np.linalg.norm(org_iris[1,:] - org_iris[3,:])
+                v_diameter = np.linalg.norm(org_iris[2,:] - org_iris[4,:])
+                # h_diameters.append(h_diameter)
+                # v_diameters.append(v_diameter)
+                pupil_center = org_iris[0,0:2].astype(np.int)
+                aligned_facial_img_iris = cv2.circle(aligned_facial_img_iris, (pupil_center[0], pupil_center[1]), radius=round(min(h_diameter, v_diameter)/2), color=(0, 0, 255), thickness=0)
+
+        aligned_facial_img = np.hstack([aligned_facial_img, aligned_facial_img_iris, aligned_facial_img_eyelids, mask_OF])
+
+        return aligned_facial_img, eyelidsDistances, irisesDiameters
