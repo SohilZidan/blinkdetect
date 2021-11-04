@@ -4,7 +4,8 @@ import shutil
 import tqdm
 import cv2
 
-from blinkdetect.visualization.eyelandmarks import IrisMarker        
+# TO BE EDITED
+from blinkdetect.eyelandmarks import IrisHandler        
         
 
 def _parser():

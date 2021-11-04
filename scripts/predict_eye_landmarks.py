@@ -11,8 +11,6 @@ import numpy as np
 import pandas as pd
 import cv2
 import torch
-# import torchvision
-# from PIL import Image
 import scipy
 import tqdm
 
@@ -20,14 +18,15 @@ import sys
 lib_dir = os.path.join(os.path.dirname(__file__), "..")
 sys.path.append(lib_dir)
 
-
-from blinkdetect.models.facemesh import FaceMesh
-from blinkdetect.models.irislandmarks import IrisLandmarks
-
 import matplotlib.pyplot as plt
 from scipy.spatial.distance import directed_hausdorff
 import scipy.ndimage
 from retinaface.commons import postprocess
+
+from blinkdetect.models.facemesh import FaceMesh
+from blinkdetect.models.irislandmarks import IrisLandmarks
+from blinkdetect.metrics.distance import iris_diameter, eyelids_directed_hausdorff_2D, eyelids_directed_hausdorff_3D
+
 
 print("PyTorch version:", torch.__version__)
 print("CUDA version:", torch.version.cuda)
@@ -57,14 +56,7 @@ eye_corners = [lower_right[0], upper_right[0]]
 left_eye_indices = lower_left+upper_left
 right_eye_indices = lower_right + upper_right
 eye_indices = {"left":left_eye_indices, "right":right_eye_indices}
-#
-# transform = torchvision.transforms.Compose([
-#     torchvision.transforms.ToTensor(),
-#     torchvision.transforms.Normalize(
-#         mean=[0.485, 0.456, 0.406],
-#         std=[0.229, 0.224, 0.225],
-#     ),
-# ])
+
 
 def parser():
     _parser = argparse.ArgumentParser()
@@ -77,24 +69,6 @@ def parser():
 
     return _parser.parse_args()
 
-def iris_diameter(iris):
-    center = iris[0,0:1, :2]
-    diameter = 0.0
-    diameter = np.linalg.norm(iris[0,1, :2] - iris[0,3, :2])
-    diameter = np.linalg.norm(iris[0,2, :2] - iris[0,4, :2])
-    return diameter/2
-
-def eyelids_directed_hausdorff_2D(set1_indices: list, set2_indices: list, landmarks: np.ndarray, iris: np.ndarray):
-    A = landmarks[:, set1_indices[0]:set1_indices[1], 0:2].reshape((-1,2))
-    B = landmarks[:, set2_indices[0]:set2_indices[1], 0:2].reshape((-1,2))
-    diameter = iris_diameter(iris)
-    return directed_hausdorff(B,A)[0] / diameter
-
-def eyelids_directed_hausdorff_3D(set1_indices: list, set2_indices: list, landmarks: np.ndarray, iris: np.ndarray):
-    A = landmarks[:, set1_indices[0]:set1_indices[1], :].reshape((-1,3))
-    B = landmarks[:, set2_indices[0]:set2_indices[1], :].reshape((-1,3))
-    diameter = iris_diameter(iris)
-    return directed_hausdorff(B,A)[0] / diameter
 
 def extract_eye_region(face: np.ndarray, facemeshnet, iris_net):
     """

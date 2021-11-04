@@ -90,14 +90,14 @@ if __name__ == "__main__":
             if ext in [".pkl"]:
                 if name == "frames":
                     frames_paths.append(os.path.join(root, _file))
-                else:
+                if name == os.path.basename(eyecutouts_folder):
                     preds_paths.append(os.path.join(root, _file))
 
+    print(preds_paths)
     results = {}
     vid_progress = tqdm.tqdm(
         list(zip(preds_paths, frames_paths)), total=len(preds_paths),
         desc="participants")
-
     for preds_path, frames_path in vid_progress:
         video_name = os.path.dirname(preds_path)
         video_name = os.path.relpath(video_name, eyecutouts_folder)
