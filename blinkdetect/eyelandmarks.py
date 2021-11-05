@@ -10,22 +10,21 @@ from retinaface.commons.postprocess import alignment_procedure
 import matplotlib.pyplot as plt
 import tqdm
 from typing import List, Union
-# print("PyTorch version:", torch.__version__)
-# print("CUDA version:", torch.version.cuda)
-# print("cuDNN version:", torch.backends.cudnn.version())
-# print("OpenCV version:", cv2.__version__)
-# torch.cuda.device_count()
+
 gpu0 = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
 gpu1 = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
 
 from blinkdetect.models.facemesh import FaceMesh
 from blinkdetect.models.irislandmarks import IrisLandmarks
 from blinkdetect.metrics.distance import eyelids_directed_hausdorff, iris_diameter
+from blinkdetect.tracking.optical_flow import compute_optFlow
+from blinkdetect.image.analyze import color_analysis
+from blinkdetect.image.misc import cut_region
 
 FACE_MESH_MODEL_PATH = os.path.join(
-    os.path.dirname(__file__), "..", "..", "models", "facemesh.pth")
+    os.path.dirname(__file__), "..", "models", "facemesh.pth")
 IRIS_MODEL_PATH = os.path.join(
-    os.path.dirname(__file__), "..", "..", "models", "irislandmarks.pth")
+    os.path.dirname(__file__), "..", "models", "irislandmarks.pth")
 
 lower_right = [33, 7, 163, 144, 145, 153, 154, 155]
 upper_right = [133, 173, 157, 158, 159, 160, 161, 246]
@@ -36,6 +35,31 @@ eye_corners = [lower_right[0], upper_right[0]]
 left_eye_indices = lower_left + upper_left
 right_eye_indices = lower_right + upper_right
 eye_indices = {"left": left_eye_indices, "right": right_eye_indices}
+
+
+def points_in_between(eye: np.ndarray) -> np.ndarray:
+    """compute the positions of the middle curve between the two eyelids
+
+    Args:
+        eye (np.ndarray): [description]
+
+    Returns:
+        np.ndarray: shape of (N, 2)
+    """
+    frm = 1
+    to = 16
+    x, y = eye[:, frm:to, 0].reshape(-1), eye[:, frm:to, 1].reshape(-1)
+    eye_corners = [tuple(eye[:, 0,0:2].reshape(-1)), tuple(eye[:, 8,0:2].reshape(-1))]
+
+    midx = [eye_corners[0][0]]
+    midy = [eye_corners[0][1]]
+    midx += [np.mean([x[i], x[i+8]]) for i in range(7)]
+    midy += [np.mean([y[i], y[i+8]]) for i in range(7)]
+    midx += [eye_corners[1][0]]
+    midy += [eye_corners[1][1]]
+
+    return np.array([midx, midy]).T
+
 
 class IrisHandler(object):
     """
@@ -64,7 +88,7 @@ class IrisHandler(object):
         self.iris_net.load_weights(iris_path)
 
 
-    def expand_bbox(self, bbox_org: List, img: np.ndarray):
+    def expand_region(self, bbox_org: List, img: np.ndarray):
         """Expand bounding box by 25% of its size
 
         Args:
@@ -91,30 +115,9 @@ class IrisHandler(object):
         return bbox_m
 
 
-    def cut_face(self, img_path: Union[np.ndarray, str], bbox: List) -> np.ndarray:
-        assert isinstance(img_path, str) or isinstance(img_path, np.ndarray), "not a supported type"
-        if isinstance(img_path, str):
-            success = os.path.exists(img_path)
-            if not success:
-                return success, np.array([])
-            img = cv2.imread(img_path, cv2.IMREAD_COLOR)
-        else:  # ndarray
-            success = (img_path.size > 0)
-            if not success:
-                return False, np.array([])
-            img = img_path.copy()
-
-        # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-
-        # cut the face
-        facial_img = img[bbox[1]:bbox[3], bbox[0]: bbox[2]]
-        success = (facial_img.size > 0)
-
-        return success, facial_img
-
-
-    def extract_eye_landmarks(self, face: np.ndarray):
-        """previously extract_eye_region_curve
+    def extract_eye_landmarks(self, face: np.ndarray, flip_right: bool=False):
+        """previously extract_eye_region_curve. Extract
+        eyelids landmarks and iris.
 
         Args:
             face (np.ndarray): horizontally aligned face
@@ -156,11 +159,14 @@ class IrisHandler(object):
             bottom = int(y1 + _enlarge)
             eye_region_org = img[top:bottom,left:right, :]
 
-            # iris landmarks
-            # iris detection
+            # iris landmarks detection
             # get the eye region
             eye_region = eye_region_org.copy()
             eye_region = cv2.resize(eye_region, (64, 64))
+
+            if flip_right and _eye == "right":
+                # flip
+                eye_region = cv2.flip(eye_region, 1)
 
             eye_gpu, iris_gpu = self.iris_net.predict_on_image(eye_region)
             eye = eye_gpu.cpu().numpy()
@@ -180,93 +186,14 @@ class IrisHandler(object):
             
             resp[_eye] = [eye, iris]
 
-            # # # # # #
-            # eyelids #
-            # # # # # #
-        #     frm = 1
-        #     to = 16
-        #     x, y = eye[:, frm:to, 0].reshape(-1), eye[:, frm:to, 1].reshape(-1)
-        #     # eye_corners = [(int(x[0]),int(y[0])), (int(x[-1]),int(y[-1]))]
-        #     eye_corners = [tuple(eye[:, 0,0:2].reshape(-1)), tuple(eye[:, 8,0:2].reshape(-1))]
-
-        #     midx = [eye_corners[0][0]]
-        #     midy = [eye_corners[0][1]]
-        #     midx += [np.mean([x[i], x[i+8]]) for i in range(7)]
-        #     midy += [np.mean([y[i], y[i+8]]) for i in range(7)]
-        #     midx += [eye_corners[1][0]]
-        #     midy += [eye_corners[1][1]]
-
-        #     # # # # #
-        #     # iris  #
-        #     # # # # #
-        #     x_pupil_center, y_pupil_center ,_ = iris[0, 0]
-        #     pupil_center=(int(x_pupil_center), int(y_pupil_center))
-
-        #     resp[_eye] = {"eye_region": eye_region, "eye_corners":eye_corners, "pupil_center":pupil_center, "eye": eye[:, 0:16, :], "midx": midx, 'midy':midy, "iris": iris}
-
         return resp
-
-    
-    def points_in_between(self, eye: np.ndarray) -> np.ndarray:
-        """compute the middle curve between the two eyelids
-
-        Args:
-            eye (np.ndarray): [description]
-
-        Returns:
-            np.ndarray: shape of (N, 2)
-        """
-        frm = 1
-        to = 16
-        x, y = eye[:, frm:to, 0].reshape(-1), eye[:, frm:to, 1].reshape(-1)
-        eye_corners = [tuple(eye[:, 0,0:2].reshape(-1)), tuple(eye[:, 8,0:2].reshape(-1))]
-
-        midx = [eye_corners[0][0]]
-        midy = [eye_corners[0][1]]
-        midx += [np.mean([x[i], x[i+8]]) for i in range(7)]
-        midy += [np.mean([y[i], y[i+8]]) for i in range(7)]
-        midx += [eye_corners[1][0]]
-        midy += [eye_corners[1][1]]
-
-        return np.array([midx, midy]).T
-
-
-    def color_analysis_curve(self, eye_region: np.ndarray, mid_points: np.ndarray):
-        # mid_points = np.stack([midx,midy], axis=1)
-        diff_mid_points = mid_points[1:] - mid_points[:-1]
-        _nums = np.ceil(np.linalg.norm(diff_mid_points, axis=1)).astype(np.int32)
-
-        acc_x = np.array([])
-        acc_y = np.array([])
-        for i in range(len(diff_mid_points)):
-            num_t = _nums[i]
-            acc_x = np.hstack((acc_x, np.linspace(midx[i], midx[i+1], num_t)))
-            acc_y = np.hstack((acc_y, np.linspace(midy[i], midy[i+1], num_t)))
-
-        x, y = acc_x, acc_y
-
-        # eyelids distance
-        _eyelids_dist = eyelids_directed_hausdorff(set1_indices=[1,8], set2_indices=[9,16], landmarks=eye, iris=iris)
-
-        _std = []
-        _mean = []
-        for _dim in range(eye_region.shape[2]):
-            z = eye_region[:,:,_dim].copy()
-            zi = scipy.ndimage.map_coordinates(z, np.vstack((y,x)))
-            # measurements  
-            _std.append(np.std(zi))
-            _mean.append(np.mean(zi))
-
-        return _std, _mean, _eyelids_dist
 
 
     def predict_eye_region(
         self,
         images_paths: list,
         facesInfo: pd.DataFrame,
-        frames_exception: list=[]):#,
-        # save_faces:str="",
-        # save_eye_change:str=""):
+        frames_exception: list=[]):
         """
         [depricated summary]
             uses mediapipe face mesh, eyelids and iris estimators to get the color values alongside
@@ -289,7 +216,7 @@ class IrisHandler(object):
         frames_names = []
 
         for _img_path in tqdm.tqdm(images_paths, total=len(images_paths), leave=False, desc="frame"):
-            # 
+
             img_name = os.path.basename(_img_path)
             _name, _ = img_name.split(".")
 
@@ -318,9 +245,9 @@ class IrisHandler(object):
             img = cv2.imread(img_path)
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             # margin
-            bbox_m = self.expand_bbox(bbox_org, img)
+            bbox_m = self.expand_region(bbox_org, img)
             # crop face
-            status, facial_img = self.cut_face(_img_path, bbox)
+            status, facial_img = cut_region(_img_path, bbox)
 
             if not status:
                 outputDF.loc[_name]['faces_not_found'] = 1
@@ -332,8 +259,8 @@ class IrisHandler(object):
 
             # 3. EXTRACT
             # face mesh prediction
-            img_facemesh = aligned_facial_img.copy()
-            resp = self.extract_eye_landmarks(face=img_facemesh)
+            # img_facemesh = aligned_facial_img.copy()
+            resp = self.extract_eye_landmarks(face=aligned_facial_img)
 
 
             # REMOVE THIS AND SOLVE IT OUTSIDE
@@ -341,29 +268,69 @@ class IrisHandler(object):
             # Analysis of color change  #
             # # # # # # # # # # # # # # # 
             for _eye in resp:
-                # eye = resp[_eye]['eye']
-                iris = resp[_eye]['eye']
-                min_coord = np.min(eye.reshape(-1, 3)[:, :2], axis=0)
-                max_coord = np.max(eye.reshape(-1, 3)[:, :2], axis=0)
-                X, Y = min_coord.astype(np.int)
-                X1, Y1 = max_coord.astype(np.int)
-                eye_region = aligned_facial_img[Y:Y1, X:X1, :]
+                eye = resp[_eye]
+                iris = resp[_eye]
 
-                #
-                mid_points = self.points_in_between(eye)
-                #
-                _std, _mean, _eyelids_dist = self.color_analysis_curve(eye_region, mid_points)
+                mid_points = points_in_between(eye)
+
+                _std, _mean = color_analysis(aligned_facial_img, mid_points)
+                _eyelids_dist = eyelids_directed_hausdorff(set1_indices=[1,8], set2_indices=[9,16], landmarks=eye)
                 resp[_eye]['line_points'] = []
                 resp[_eye]['std'] = _std
                 resp[_eye]['mean_color'] = _mean
                 resp[_eye]['eyelids_dist'] = _eyelids_dist
-                
+
                 outputDF.loc[_name][f'eyelids_dist_{_eye}'] = resp[_eye]['eyelids_dist']
                 outputDF.loc[_name][f'mean_color_{_eye}'] = resp[_eye]['mean_color']
                 outputDF.loc[_name][f'std_{_eye}'] = resp[_eye]['std']
                 outputDF.loc[_name][f'line_points_{_eye}'] = resp[_eye]['line_points']
 
         return outputDF, processed_images, frames_names#, _means, _stds, _eyelids_dists
+
+
+    def analuze_eye_region(self, image_path: str, facial_area, landmarks):
+        """
+            uses mediapipe face mesh, eyelids and iris estimators to get the following:
+                - eyelids distance for both eyes
+                - std and mean for the curve between the upper and lower eyelids
+        """
+        # read image
+        img = cv2.imread(img_path)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+        # 1. EXTRACT FACE
+        bbox_org = facial_area
+        left_eye = landmarks['left_eye']
+        right_eye = landmarks['right_eye']
+        # crop margined face
+        bbox_m = self.expand_region(bbox_org, img)
+        # currently it is assumed that there is a face --> success==True
+        success, facial_img = cut_region(_img_path, bbox)
+
+        # 2. ALIGN IT 
+        aligned_facial_img = postprocess.alignment_procedure(facial_img, right_eye, left_eye)
+
+        # 3. EXTRACT
+        # face mesh prediction
+        resp = self.extract_eye_landmarks(face=aligned_facial_img)
+
+        # # # # # # # # # # # # # # #
+        # Analysis of color change  #
+        # # # # # # # # # # # # # # # 
+        final_reponse = dict()
+        for _eye in resp:
+            eye = resp[_eye]
+            iris = resp[_eye]
+
+            mid_points = points_in_between(eye)
+            std, mean = color_analysis(aligned_facial_img, mid_points)
+            eyelids_dist = eyelids_directed_hausdorff(set1_indices=[1,8], set2_indices=[9,16], landmarks=eye)
+
+            final_reponse[f'eyelids_dist_{_eye}'] = std
+            final_reponse[f'mean_color_{_eye}'] = mean
+            final_reponse[f'std_color_{_eye}'] = eyelids_dist
+    
+        return final_reponse
 
 
     def overlay_image(self, img: np.ndarray, transform = False, eyelids = True, iris = True):
@@ -388,10 +355,10 @@ class IrisHandler(object):
         right_eye_pt = faces['face_1']['landmarks']['right_eye']
 
         # margin
-        bbox_m = self.expand_bbox(bbox_org, img)
+        bbox_m = self.expand_region(bbox_org, img)
 
         # cut face
-        sucess, facial_img_m = self.cut_face(img, bbox_m)
+        sucess, facial_img_m = cut_region(img, bbox_m)
 
         # alignment
         aligned_facial_img = alignment_procedure(facial_img_m, left_eye_pt, right_eye_pt)
@@ -432,38 +399,7 @@ class IrisHandler(object):
         return aligned_facial_img
 
 
-    def compute_optFlow(self, prev_gray: np.ndarray, current_frame: np.ndarray):
-        mask = np.zeros_like(current_frame)
-        # Sets image saturation to maximum
-        mask[..., 1] = 255
-        if prev_gray is None:
-            return mask
-
-        current_gray = cv2.cvtColor(current_frame, cv2.COLOR_BGR2GRAY)
-        # Calculates dense optical flow by Farneback method
-        flow = cv2.calcOpticalFlowFarneback(prev_gray, current_gray, 
-                                        None,
-                                        0.5, 3, 15, 3, 5, 1.2, 0)
-
-        # Computes the magnitude and angle of the 2D vectors
-        magnitude, angle = cv2.cartToPolar(flow[..., 0], flow[..., 1])
-
-        # Sets image hue according to the optical flow 
-        # direction
-        mask[..., 0] = angle * 180 / np.pi / 2
-        
-        # Sets image value according to the optical flow
-        # magnitude (normalized)
-        mask[..., 2] = cv2.normalize(magnitude, None, 0, 255, cv2.NORM_MINMAX)
-
-        # Converts HSV to RGB (BGR) color representation
-        rgb = cv2.cvtColor(mask, cv2.COLOR_HSV2BGR)
-        
-        # Opens a new window and displays the output frame
-        return rgb
-
-
-    def analyze(self, img: np.ndarray, prev_img: np.ndarray = None, transform = False, eyelids = True, iris = True):
+    def analyze(self, img_input: np.ndarray, prev_img: np.ndarray = None, transform = False, eyelids = True, iris = True):
         """
         This expects input to be RGB if transform is False.
         if transform is True, It will convert the input into RGB
@@ -481,15 +417,12 @@ class IrisHandler(object):
         assert self.model is not None, "this version does not support other bounding boxes formats"
 
         if not transform:
-            img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+            img = cv2.cvtColor(img_input, cv2.COLOR_RGB2BGR)
+        else:
+            img = img_input.copy()
 
         # compute optical flow
-        if prev_img is None:
-            prev_gray = prev_img
-        else:
-            prev_gray = cv2.cvtColor(prev_img, cv2.COLOR_BGR2GRAY)
-        current_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        mask_OF = self.compute_optFlow(prev_gray, img)
+        mask_OF = compute_optFlow(prev_img, img)
 
         faces = RetinaFace.detect_faces(img, model=self.model)
         if type(faces) is tuple:
@@ -500,14 +433,14 @@ class IrisHandler(object):
         right_eye_pt = faces['face_1']['landmarks']['right_eye']
 
         # margin
-        bbox_m = self.expand_bbox(bbox_org, img)
+        bbox_m = self.expand_region(bbox_org, img)
 
         # cut face
-        sucess, facial_img_m = self.cut_face(img, bbox_m)
-        _, mask_OF = self.cut_face(mask_OF, bbox_m)
+        sucess, facial_img_m = cut_region(img, bbox_m)
+        _, mask_OF = cut_region(mask_OF, bbox_m)
 
         # alignment
-        aligned_facial_img = alignment_procedure(facial_img_m, left_eye_pt, right_eye_pt)
+        aligned_facial_img = alignment_procedure(facial_img_m, right_eye_pt, left_eye_pt)
 
         if transform:
             aligned_facial_img = cv2.cvtColor(aligned_facial_img, cv2.COLOR_BGR2RGB)
@@ -547,6 +480,7 @@ class IrisHandler(object):
                 pupil_center = org_iris[0,0:2].astype(np.int)
                 aligned_facial_img_iris = cv2.circle(aligned_facial_img_iris, (pupil_center[0], pupil_center[1]), radius=round(min(h_diameter, v_diameter)/2), color=(0, 0, 255), thickness=0)
 
-        aligned_facial_img = np.hstack([aligned_facial_img, aligned_facial_img_iris, aligned_facial_img_eyelids, mask_OF])
+        img = cv2.cvtColor(facial_img_m, cv2.COLOR_BGR2RGB)
+        aligned_facial_img = np.hstack([img, aligned_facial_img_iris, aligned_facial_img_eyelids, mask_OF])
 
         return aligned_facial_img, eyelidsDistances, irisesDiameters
