@@ -30,6 +30,9 @@ lower_right = [33, 7, 163, 144, 145, 153, 154, 155]
 upper_right = [133, 173, 157, 158, 159, 160, 161, 246]
 lower_left = [362, 382, 381, 380, 374, 373, 390, 249]
 upper_left = [263, 466, 388, 387, 386, 385, 384, 398]
+eye_corners_right = [lower_right[0], upper_right[0]]
+eye_corners_left = [lower_left[0], upper_left[0]]
+eye_corners = {"left":eye_corners_left, "right":eye_corners_right}
 
 eye_corners = [lower_right[0], upper_right[0]]
 left_eye_indices = lower_left + upper_left
@@ -288,7 +291,7 @@ class IrisHandler(object):
         return outputDF, processed_images, frames_names#, _means, _stds, _eyelids_dists
 
 
-    def analuze_eye_region(self, image_path: str, facial_area, landmarks):
+    def analyze_eye_region(self, image_path: str, facial_area, landmarks):
         """
             uses mediapipe face mesh, eyelids and iris estimators to get the following:
                 - eyelids distance for both eyes
@@ -452,6 +455,7 @@ class IrisHandler(object):
 
         eyelidsDistances = dict.fromkeys(resp.keys())
         irisesDiameters = dict.fromkeys(resp.keys())
+        pupil2corners = dict.fromkeys(resp.keys())
 
         for eye_key in resp:
             org_eye, org_iris = resp[eye_key]
@@ -459,13 +463,22 @@ class IrisHandler(object):
             eyelidsDistances[eye_key] = eyelids_directed_hausdorff(set1_indices=[1,8], set2_indices=[9,16], landmarks=org_eye)
             irisesDiameters[eye_key] = iris_diameter(org_iris)
 
+
             # draw eyelids
             if eyelids:
                 
                 for i in range(1, 16):
-                    center = org_eye[0, i, 0:2].astype(np.int)
+                    center = np.rint(org_eye[0, i, 0:2]).astype(np.int)
                     aligned_facial_img_eyelids = cv2.circle(aligned_facial_img_eyelids, (center[0], center[1]), radius=0, color=(255, 255, 100), thickness=1)
 
+            # distance from puipl center to the left corner
+            pupil2corners[eye_key] = np.linalg.norm(org_iris[0,0:2] - org_eye[0, 0, 0:2])
+            # pupil_center = np.rint(org_iris[0,0:2]).astype(np.int)
+            corner_left = np.rint(org_eye[0, 0, 0:2]).astype(np.int)
+            corner_right = np.rint(org_eye[0, 8, 0:2]).astype(np.int)
+            aligned_facial_img_eyelids = cv2.circle(aligned_facial_img_eyelids, (corner_left[0], corner_left[1]), radius=0, color=(255, 0, 0), thickness=2)
+            aligned_facial_img_eyelids = cv2.circle(aligned_facial_img_eyelids, (corner_right[0], corner_right[1]), radius=0, color=(255, 0, 0), thickness=2)
+            # eye_corners = [tuple(org_eye[:, 0,0:2].reshape(-1)), tuple(org_eye[:, 8,0:2].reshape(-1))]
             # draw iris landmarks
             if iris:
                 # for i in range(5):
@@ -477,10 +490,72 @@ class IrisHandler(object):
                 v_diameter = np.linalg.norm(org_iris[2,:] - org_iris[4,:])
                 # h_diameters.append(h_diameter)
                 # v_diameters.append(v_diameter)
-                pupil_center = org_iris[0,0:2].astype(np.int)
-                aligned_facial_img_iris = cv2.circle(aligned_facial_img_iris, (pupil_center[0], pupil_center[1]), radius=round(min(h_diameter, v_diameter)/2), color=(0, 0, 255), thickness=0)
+                pupil_center = np.rint(org_iris[0,0:2]).astype(np.int)
+                aligned_facial_img_iris = cv2.circle(aligned_facial_img_iris, (pupil_center[0], pupil_center[1]), radius=round((h_diameter + v_diameter) / 4), color=(0, 0, 255), thickness=0)
 
         img = cv2.cvtColor(facial_img_m, cv2.COLOR_BGR2RGB)
         aligned_facial_img = np.hstack([img, aligned_facial_img_iris, aligned_facial_img_eyelids, mask_OF])
 
-        return aligned_facial_img, eyelidsDistances, irisesDiameters
+        return aligned_facial_img, eyelidsDistances, irisesDiameters, pupil2corners
+
+
+    def extract_features(self, img_input: np.ndarray, transform = False):
+        """
+        This expects input to be RGB if transform is False.
+        if transform is True, It will convert the input into RGB
+
+        Args:
+            img (np.ndarray): [description]
+            transform (bool, optional): Defaults to False.
+
+        Returns:
+            [type]: [description]
+        """
+
+        assert self.model is not None, "this version does not support other bounding boxes formats"
+
+        if not transform:
+            img = cv2.cvtColor(img_input, cv2.COLOR_RGB2BGR)
+        else:
+            img = img_input.copy()
+
+        faces = RetinaFace.detect_faces(img, model=self.model)
+        if type(faces) is tuple:
+            return img
+        # in case there is a face take the first one
+        bbox_org = faces['face_1']['facial_area']
+        left_eye_pt = faces['face_1']['landmarks']['left_eye']
+        right_eye_pt = faces['face_1']['landmarks']['right_eye']
+
+        # margin
+        bbox_m = self.expand_region(bbox_org, img)
+
+        # cut face
+        sucess, facial_img_m = cut_region(img, bbox_m)
+
+        # alignment
+        aligned_facial_img = alignment_procedure(facial_img_m, right_eye_pt, left_eye_pt)
+
+        if transform:
+            aligned_facial_img = cv2.cvtColor(aligned_facial_img, cv2.COLOR_BGR2RGB)
+        # eyes landmarks
+        resp = self.extract_eye_landmarks(aligned_facial_img, flip_right=True)
+
+        eyelidsDistances = dict.fromkeys(resp.keys())
+        irisesDiameters = dict.fromkeys(resp.keys())
+        pupil2corners = dict.fromkeys(resp.keys())
+
+        for eye_key in resp:
+            org_eye, org_iris = resp[eye_key]
+
+            # eyelids distance
+            eyelidsDistances[eye_key] = eyelids_directed_hausdorff(set1_indices=[1,8], set2_indices=[9,16], landmarks=org_eye)
+
+            # iris diameter
+            irisesDiameters[eye_key] = iris_diameter(org_iris)
+
+            # distance from puipl center to the left corner (inner corner)
+            pupil2corners[eye_key] = np.linalg.norm(org_iris[0,0:2] - org_eye[0, 0, 0:2])
+
+
+        return eyelidsDistances, irisesDiameters, pupil2corners
