@@ -28,3 +28,29 @@ def cut_region(img_path: Union[np.ndarray, str], bbox: List) -> np.ndarray:
     success = (facial_img.size > 0)
 
     return success, facial_img
+
+def expand_region(bbox_org: List, img: np.ndarray, expansion_ratio: float=0.25):
+        """Expand bounding box by 25% of its size
+
+        Args:
+            bbox_org (List): [description]
+            img (np.ndarray): [description]
+
+        Returns:
+            [type]: [description]
+        """
+        H = bbox_org[3] - bbox_org[1]
+        W = bbox_org[2] - bbox_org[0]
+
+        up = int(bbox_org[1] - expansion_ratio * H)
+        down = int(bbox_org[3] + expansion_ratio * H)
+        left = int(bbox_org[0] - expansion_ratio * W)
+        right = int(bbox_org[2] + expansion_ratio * W)
+
+        up = up if up > 0 else 0
+        down = down if down < img.shape[0] else img.shape[0]
+        left = left if left > 0 else 0
+        right = right if right < img.shape[1] else img.shape[1]
+        bbox_m = [left, up, right, down]
+
+        return bbox_m

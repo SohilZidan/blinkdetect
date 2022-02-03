@@ -26,8 +26,8 @@ def color_analysis(img_region: np.ndarray, points: np.ndarray) -> Tuple[List, Li
     acc_y = np.array([])
     for i in range(len(diff_mid_points)):
         num_t = _nums[i]
-        acc_x = np.hstack((acc_x, np.linspace(midx[i], midx[i+1], num_t)))
-        acc_y = np.hstack((acc_y, np.linspace(midy[i], midy[i+1], num_t)))
+        acc_x = np.hstack((acc_x, np.linspace(points[:,0][i], points[:,0][i+1], num_t)))
+        acc_y = np.hstack((acc_y, np.linspace(points[:,1][i], points[:,1][i+1], num_t)))
 
     x, y = acc_x, acc_y
 
