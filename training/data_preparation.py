@@ -82,12 +82,15 @@ if __name__=="__main__":
     meta_file = os.path.join(_version_folder, "meta.json")
     output_folder = os.path.join(_version_folder, "plots")
     # 
-    if os.path.exists(_version_folder):
-        shutil.rmtree(_version_folder)
+    # if os.path.exists(_version_folder):
+    #     shutil.rmtree(_version_folder)
     os.makedirs(_version_folder, exist_ok=True)
     # if os.path.exists(output_folder):
     #     shutil.rmtree(output_folder)
     if args.generate_plots:
+        import shutil
+        if os.path.exists(output_folder):
+            shutil.rmtree(output_folder)
         os.makedirs(output_folder)
 
     # 
@@ -111,7 +114,13 @@ if __name__=="__main__":
 
     minall_lids = 10
     maxall_lids = 0
-        
+
+    minall_pupil2corner = 20
+    maxall_pupil2corner = 0
+
+    minall_irisDiameter = 20
+    maxall_irisDiameter = 0
+
     #
     # video paths
     annds_paths = []
@@ -135,9 +144,13 @@ if __name__=="__main__":
         # 
         # read data
         # 
-        signals_path = os.path.join(dataset_root,"tracked_faces", args.dataset, video_name, "signals")
+        signals_path = os.path.join(dataset_root,"tracked_faces_v2", args.dataset, video_name, "signals")
         std_path = os.path.join(signals_path, "stds.pkl")
         eyelids_path = os.path.join(signals_path, "eyelids_dists.pkl")
+
+        iris_file_path = os.path.join(signals_path, "iris_diameter.pkl")
+        pupil2corner_file_path = os.path.join(signals_path, "pupil2corner.pkl")
+
         faces_not_found_path = os.path.join(signals_path, "face_not_found.pkl")
         yaw_path = os.path.join(signals_path, "yaw_angles.pkl")
         pitch_path = os.path.join(signals_path, "pitch_angles.pkl")
@@ -146,6 +159,12 @@ if __name__=="__main__":
             std = pickle.load(f)['best']
         with open(eyelids_path, "rb") as f:
             eyelids_dist = pickle.load(f)['best']
+
+        with open(iris_file_path, "rb") as f:
+            iris_diameters = pickle.load(f)['best']
+        with open(pupil2corner_file_path, "rb") as f:
+            pupil2corners = pickle.load(f)['best']
+
         with open(faces_not_found_path, "rb") as f:
             faces_not_found = pickle.load(f)
         with open(yaw_path, "rb") as f:
@@ -170,17 +189,16 @@ if __name__=="__main__":
         minall_lids = min((minall_lids,min(eyelids_dist)))
         maxall_lids = max((maxall_lids,max(eyelids_dist)))
 
-        # print(f"std_r: min {min(std_r)}, max {max(std_r)}")
-        # print(f"std_g: min {min(std_g)}, max {max(std_g)}")
-        # print(f"std_b: min {min(std_b)}, max {max(std_b)}")
-        # print(f"eyelids: min {min(eyelids_dist)}, max {max(eyelids_dist)}")
-        # 
+        minall_irisDiameter = min((minall_irisDiameter,min(iris_diameters)))
+        maxall_irisDiameter = max((maxall_irisDiameter,max(iris_diameters)))
+
+        minall_pupil2corner = min((minall_pupil2corner,min(pupil2corners)))
+        maxall_pupil2corner = max((maxall_pupil2corner,max(pupil2corners)))
+
         if args.dataset=="BlinkingValidationSetVideos":
             blinking_anns = get_blinking_annotation(video_name)
         else:
             closeness_list, blinking_anns = read_annotations_tag(anns_path)
-
-        
 
         face_found_anns = get_intervals(faces_not_found, val=0)
         yaw_preds = get_intervals_between(yaw_angles, val=args.yaw_range)
@@ -189,15 +207,9 @@ if __name__=="__main__":
         # new 
         blinking_anns = blinking_anns.intersect(yaw_preds)
         blinking_anns = blinking_anns.intersect(pitch_preds)
-        # print(blinking_anns)
-        # exit()
-        #
+
         _noblink_range = [0, None]
         _once_legend = True
-
-        # _sum = 0
-        # for b in blinking_anns:
-        #     _sum += len(b)
 
         for _blink in tqdm.tqdm(blinking_anns, total=len(blinking_anns), desc="blinks"):
             blink_length = _blink.stop - _blink.start+1
@@ -249,6 +261,9 @@ if __name__=="__main__":
                         y_std_r_noblink, _, _num_noblink = resample_noblink(y_in=std_r, start=random_start, stop=random_end-1, samples=_num_noblink)
                         y_std_g_noblink, _, _num_noblink = resample_noblink(y_in=std_g, start=random_start, stop=random_end-1, samples=_num_noblink)
                         y_std_b_noblink, _, _num_noblink = resample_noblink(y_in=std_b, start=random_start, stop=random_end-1, samples=_num_noblink)
+                        #
+                        y_iris_diameters_noblink, _, _num_noblink = resample_noblink(y_in=iris_diameters, start=random_start, stop=random_end-1, samples=_num_noblink)
+                        y_pupil2corners_noblink, _, _num_noblink = resample_noblink(y_in=pupil2corners, start=random_start, stop=random_end-1, samples=_num_noblink)
                         # new
                         y_yaws, _, _num_noblink = resample_noblink(y_in=yaw_angles, start=random_start, stop=random_end-1, samples=_num_noblink)
                         y_pitchs, _, _num_noblink = resample_noblink(y_in=pitch_angles, start=random_start, stop=random_end-1, samples=_num_noblink)
@@ -258,6 +273,8 @@ if __name__=="__main__":
                             "pid": video_name,
                             "range": f"{random_start}-{random_end}",
                             "eyelids_dist": y_eyelids_noblink.tolist(), 
+                            "iris_diameter": y_iris_diameters_noblink.tolist(),
+                            "pupil2corner": y_pupil2corners_noblink.tolist(),
                             "std_r": y_std_r_noblink.tolist(), 
                             "std_g": y_std_g_noblink.tolist(), 
                             "std_b": y_std_b_noblink.tolist(),
@@ -267,16 +284,16 @@ if __name__=="__main__":
                             "blink_length": int(_partial_length),
                             "start": 0,
                             "end": 0}
-                        annotations_0.append(_ann)
 
                         # plots
                         if args.generate_plots:
                             fig, _ = plt.subplots(1, 1)
                             plt.title(f"{random_start}-{random_end}")
                             plt.plot(y_eyelids_noblink, "k", label='eyelids distance')
-                            plt.plot(y_std_r_noblink, "r", label='std_r (Red)')
-                            plt.plot(y_std_g_noblink, "g", label='std_g (Green)')
-                            plt.plot(y_std_b_noblink, "b", label='std_b (Blue)')
+                            plt.plot(y_iris_diameters_noblink, "y", label='iris diameter')
+                            # plt.plot(y_std_r_noblink, "r", label='std_r (Red)')
+                            # plt.plot(y_std_g_noblink, "g", label='std_g (Green)')
+                            # plt.plot(y_std_b_noblink, "b", label='std_b (Blue)')
                             plt.plot(_no_blink, label="No Blink")
                             plt.legend()
                             plt.tight_layout()
@@ -289,8 +306,11 @@ if __name__=="__main__":
                         all_no_blinks+=1
                         # increment examples
                         _examples+=1
-                        # 
+                        #
                         random_start += _n_frames_skipped
+                        #
+                        if int(_partial_length) > 0: continue
+                        annotations_0.append(_ann)
 
             _noblink_range[0] = _blink.stop+1
 
@@ -315,6 +335,9 @@ if __name__=="__main__":
             y_std_r, _, _num = upsample_blink(y_in=std_r, start=_blink.start, stop=_blink.stop, samples=blink_length)
             y_std_g, _, _num = upsample_blink(y_in=std_g, start=_blink.start, stop=_blink.stop, samples=blink_length)
             y_std_b, _, _num = upsample_blink(y_in=std_b, start=_blink.start, stop=_blink.stop, samples=blink_length)
+            #
+            y_iris_diameters_blink, _, _num = upsample_blink(y_in=iris_diameters, start=_blink.start, stop=_blink.stop, samples=blink_length)
+            y_pupil2corners_blink, _, _num = upsample_blink(y_in=pupil2corners, start=_blink.start, stop=_blink.stop, samples=blink_length)
             # new
             y_yaws, _, _num = upsample_blink(y_in=yaw_angles, start=_blink.start, stop=_blink.stop, samples=blink_length)
             y_pitchs, _, _num = upsample_blink(y_in=pitch_angles, start=_blink.start, stop=_blink.stop, samples=blink_length)
@@ -328,7 +351,9 @@ if __name__=="__main__":
             _ann = {
                 "pid": video_name,
                 "range": f"{_blink.start}-{_blink.stop}",
-                "eyelids_dist": y_eyelids[15:-15].tolist(), 
+                "eyelids_dist": y_eyelids[15:-15].tolist(),
+                "iris_diameter": y_iris_diameters_blink[15:-15].tolist(),
+                "pupil2corner": y_pupil2corners_blink[15:-15].tolist(),
                 "std_r": y_std_r[15:-15].tolist(), 
                 "std_g": y_std_g[15:-15].tolist(), 
                 "std_b": y_std_b[15:-15].tolist(),
@@ -345,6 +370,10 @@ if __name__=="__main__":
                 # Shifted #
                 # # # # # #
                 y_shifted_eyelids, _steps_original = shift(y_eyelids, [-max_left_shift, max_right_shift])
+                #
+                y_shifted_iris_diameter, _ = shift(y_iris_diameters_blink, _steps_original)
+                y_shifted_pupil2corner, _ = shift(y_pupil2corners_blink, _steps_original)
+                #
                 y_shifted_std_r, _ = shift(y_std_r, _steps_original)
                 y_shifted_std_g, _ = shift(y_std_g, _steps_original)
                 y_shifted_std_b, _ = shift(y_std_b, _steps_original)
@@ -354,8 +383,12 @@ if __name__=="__main__":
                 _ann = {
                     "pid": video_name,
                     "range": f"{_blink.start}-{_blink.stop}",
-                    "eyelids_dist": y_shifted_eyelids[15:-15].tolist(), 
-                    "std_r": y_shifted_std_r[15:-15].tolist(), 
+                    "eyelids_dist": y_shifted_eyelids[15:-15].tolist(),
+                    #
+                    "iris_diameter": y_shifted_iris_diameter[15:-15].tolist(),
+                    "pupil2corner": y_shifted_pupil2corner[15:-15].tolist(),
+                    #
+                    "std_r": y_shifted_std_r[15:-15].tolist(),
                     "std_g": y_shifted_std_g[15:-15].tolist(), 
                     "std_b": y_shifted_std_b[15:-15].tolist(),
                     "yaws": y_yaws[15:-15].tolist(),
@@ -369,6 +402,10 @@ if __name__=="__main__":
                 # Upsampled #
                 # # # # # # #
                 y_extended_eyelids, blink_extended, _num_extended = upsample_blink(y_in=eyelids_dist, start=_blink.start, stop=_blink.stop, samples=None)
+                #
+                y_extended_iris_diameters, _, _ = upsample_blink(y_in=iris_diameters, start=_blink.start, stop=_blink.stop, samples=_num_extended)
+                y_extended_pupil2corners, _, _ = upsample_blink(y_in=pupil2corners, start=_blink.start, stop=_blink.stop, samples=_num_extended)
+                #
                 y_extended_std_r, _, _ = upsample_blink(y_in=std_r, start=_blink.start, stop=_blink.stop, samples=_num_extended)
                 y_extended_std_g, _, _ = upsample_blink(y_in=std_g, start=_blink.start, stop=_blink.stop, samples=_num_extended)
                 y_extended_std_b, _, _ = upsample_blink(y_in=std_b, start=_blink.start, stop=_blink.stop, samples=_num_extended)
@@ -381,7 +418,11 @@ if __name__=="__main__":
                 _ann = {
                     "pid": video_name,
                     "range": f"{_blink.start}-{_blink.stop}",
-                    "eyelids_dist": y_extended_eyelids[15:-15].tolist(), 
+                    "eyelids_dist": y_extended_eyelids[15:-15].tolist(),
+                    #
+                    "iris_diameter": y_extended_iris_diameters[15:-15].tolist(),
+                    "pupil2corner": y_extended_pupil2corners[15:-15].tolist(),
+                    #
                     "std_r": y_extended_std_r[15:-15].tolist(), 
                     "std_g": y_extended_std_g[15:-15].tolist(), 
                     "std_b": y_extended_std_b[15:-15].tolist(),
@@ -397,6 +438,10 @@ if __name__=="__main__":
                 # Upsampled Shifted #
                 # # # # # # # # # # #
                 y_extended_shifted_eyelids, _steps_extended = shift(y_extended_eyelids, [-max_left_shift, max_right_shift])
+                #
+                y_extended_shifted_iris_diameters, _ = shift(y_extended_iris_diameters, _steps_extended)
+                y_extended_shifted_pupil2corners, _ = shift(y_extended_pupil2corners, _steps_extended)
+                #
                 y_extended_shifted_std_r, _ = shift(y_extended_std_r, _steps_extended)
                 y_extended_shifted_std_g, _ = shift(y_extended_std_g, _steps_extended)
                 y_extended_shifted_std_b, _ = shift(y_extended_std_b, _steps_extended)
@@ -407,7 +452,11 @@ if __name__=="__main__":
                 _ann = {
                     "pid": video_name,
                     "range": f"{_blink.start}-{_blink.stop}",
-                    "eyelids_dist": y_extended_shifted_eyelids[15:-15].tolist(), 
+                    "eyelids_dist": y_extended_shifted_eyelids[15:-15].tolist(),
+                    #
+                    "iris_diameter": y_extended_shifted_iris_diameters[15:-15].tolist(),
+                    "pupil2corner": y_extended_shifted_pupil2corners[15:-15].tolist(),
+                    #
                     "std_r": y_extended_shifted_std_r[15:-15].tolist(), 
                     "std_g": y_extended_shifted_std_g[15:-15].tolist(), 
                     "std_b": y_extended_shifted_std_b[15:-15].tolist(),
@@ -423,6 +472,10 @@ if __name__=="__main__":
                 # Downsampled #
                 # # # # # # # #
                 y_downsampled_eyelids, blink_downsampled, _num_shrinked = downsample_blink(y_in=eyelids_dist, start=_blink.start, stop=_blink.stop, samples=None)
+                #
+                y_downsampled_iris_diameters, _, _ = downsample_blink(y_in=iris_diameters, start=_blink.start, stop=_blink.stop, samples=_num_shrinked)
+                y_downsampled_pupil2corners, _, _ = downsample_blink(y_in=pupil2corners, start=_blink.start, stop=_blink.stop, samples=_num_shrinked)
+                #
                 y_downsampled_std_r, _, _ = downsample_blink(y_in=std_r, start=_blink.start, stop=_blink.stop, samples=_num_shrinked)
                 y_downsampled_std_g, _, _ = downsample_blink(y_in=std_g, start=_blink.start, stop=_blink.stop, samples=_num_shrinked)
                 y_downsampled_std_b, _, _ = downsample_blink(y_in=std_b, start=_blink.start, stop=_blink.stop, samples=_num_shrinked)
@@ -435,7 +488,11 @@ if __name__=="__main__":
                 _ann = {
                     "pid": video_name,
                     "range": f"{_blink.start}-{_blink.stop}",
-                    "eyelids_dist": y_downsampled_eyelids[15:-15].tolist(), 
+                    "eyelids_dist": y_downsampled_eyelids[15:-15].tolist(),
+                    #
+                    "iris_diameter": y_downsampled_iris_diameters[15:-15].tolist(),
+                    "pupil2corner": y_downsampled_pupil2corners[15:-15].tolist(),
+                    #
                     "std_r": y_downsampled_std_r[15:-15].tolist(), 
                     "std_g": y_downsampled_std_g[15:-15].tolist(), 
                     "std_b": y_downsampled_std_b[15:-15].tolist(),
@@ -451,6 +508,10 @@ if __name__=="__main__":
                 # Downsampled Shifted #
                 # # # # # # # # # # # #
                 y_downsampled_shifted_eyelids, _steps_downsampled = shift(y_downsampled_eyelids, [-max_left_shift, max_right_shift])
+                #
+                y_downsampled_shifted_iris_diameters, _ = shift(y_downsampled_iris_diameters, _steps_downsampled)
+                y_downsampled_shifted_pupil2corners, _ = shift(y_downsampled_pupil2corners, _steps_downsampled)
+                #
                 y_downsampled_shifted_std_r, _ = shift(y_downsampled_std_r, _steps_downsampled)
                 y_downsampled_shifted_std_g, _ = shift(y_downsampled_std_g, _steps_downsampled)
                 y_downsampled_shifted_std_b, _ = shift(y_downsampled_std_b, _steps_downsampled)
@@ -461,7 +522,11 @@ if __name__=="__main__":
                 _ann = {
                     "pid": video_name,
                     "range": f"{_blink.start}-{_blink.stop}",
-                    "eyelids_dist": y_downsampled_shifted_eyelids[15:-15].tolist(), 
+                    "eyelids_dist": y_downsampled_shifted_eyelids[15:-15].tolist(),
+                    #
+                    "iris_diameter": y_downsampled_shifted_iris_diameters[15:-15].tolist(),
+                    "pupil2corner": y_downsampled_shifted_pupil2corners[15:-15].tolist(),
+                    #
                     "std_r": y_downsampled_shifted_std_r[15:-15].tolist(), 
                     "std_g": y_downsampled_shifted_std_g[15:-15].tolist(), 
                     "std_b": y_downsampled_shifted_std_b[15:-15].tolist(),
@@ -485,49 +550,61 @@ if __name__=="__main__":
                     plt.subplot(2,3, 1)
                     plt.title(f"original len: {blink_length}")
                     plt.plot(y_eyelids[15:-15], "k", label='eyelids distance')
-                    plt.plot(y_std_r[15:-15], "r", label='std_r (Red)')
-                    plt.plot(y_std_g[15:-15], "g", label='std_g (Green)')
-                    plt.plot(y_std_b[15:-15], "b", label='std_b (Blue)')
+                    plt.plot(y_iris_diameters_blink[15:-15], "y", label='iris diameter')
+                    plt.plot(y_eyelids[15:-15]/y_iris_diameters_blink[15:-15], "c", label='normalized')
+                    # plt.plot(y_std_r[15:-15], "r", label='std_r (Red)')
+                    # plt.plot(y_std_g[15:-15], "g", label='std_g (Green)')
+                    # plt.plot(y_std_b[15:-15], "b", label='std_b (Blue)')
                     plt.plot(blink[15:-15], label="Blink")
                     # shifted
                     plt.subplot(2,3, 4)
                     plt.title(f"shifted by {_steps_original}")
                     plt.plot(y_shifted_eyelids[15:-15], "k")
-                    plt.plot(y_shifted_std_r[15:-15], "r")
-                    plt.plot(y_shifted_std_g[15:-15], "g")
-                    plt.plot(y_shifted_std_b[15:-15], "b")
+                    plt.plot(y_shifted_iris_diameter[15:-15], "y", label='iris diameter')
+                    plt.plot(y_shifted_eyelids[15:-15]/y_shifted_iris_diameter[15:-15], "c", label='normalized')
+                    # plt.plot(y_shifted_std_r[15:-15], "r")
+                    # plt.plot(y_shifted_std_g[15:-15], "g")
+                    # plt.plot(y_shifted_std_b[15:-15], "b")
                     plt.plot(blink_shifted[15:-15])
                     # extended
                     plt.subplot(2,3, 2)
                     plt.title(f"extended {_num_extended}")
                     plt.plot(y_extended_eyelids[15:-15], "k")
-                    plt.plot(y_extended_std_r[15:-15], "r")
-                    plt.plot(y_extended_std_g[15:-15], "g")
-                    plt.plot(y_extended_std_b[15:-15], "b")
+                    plt.plot(y_extended_iris_diameters[15:-15], "y", label='iris diameter')
+                    plt.plot(y_extended_eyelids[15:-15]/y_extended_iris_diameters[15:-15], "c", label='normalized')
+                    # plt.plot(y_extended_std_r[15:-15], "r")
+                    # plt.plot(y_extended_std_g[15:-15], "g")
+                    # plt.plot(y_extended_std_b[15:-15], "b")
                     plt.plot(blink_extended[15:-15])
                     plt.subplot(2,3, 5)
                     #  extended shifted
                     plt.title(f"shifted by {_steps_extended}")
                     plt.plot(y_extended_shifted_eyelids[15:-15], "k")
-                    plt.plot(y_extended_shifted_std_r[15:-15], "r")
-                    plt.plot(y_extended_shifted_std_g[15:-15], "g")
-                    plt.plot(y_extended_shifted_std_b[15:-15], "b")
+                    plt.plot( y_extended_shifted_iris_diameters[15:-15], "y", label='iris diameter')
+                    plt.plot(y_extended_shifted_eyelids[15:-15]/ y_extended_shifted_iris_diameters[15:-15], "c", label='normalized')
+                    # plt.plot(y_extended_shifted_std_r[15:-15], "r")
+                    # plt.plot(y_extended_shifted_std_g[15:-15], "g")
+                    # plt.plot(y_extended_shifted_std_b[15:-15], "b")
                     plt.plot(blink_extended_shifted[15:-15])
                     # shrinked
                     plt.subplot(2,3, 3)
                     plt.title(f"shrunk {_num_shrinked}")
                     plt.plot(y_downsampled_eyelids[15:-15], "k")
-                    plt.plot(y_downsampled_std_r[15:-15], "r")
-                    plt.plot(y_downsampled_std_g[15:-15], "g")
-                    plt.plot(y_downsampled_std_b[15:-15], "b")
+                    plt.plot(y_downsampled_iris_diameters[15:-15], "y", label='iris diameter')
+                    plt.plot(y_downsampled_eyelids[15:-15]/y_downsampled_iris_diameters[15:-15], "c", label='normalized')
+                    # plt.plot(y_downsampled_std_r[15:-15], "r")
+                    # plt.plot(y_downsampled_std_g[15:-15], "g")
+                    # plt.plot(y_downsampled_std_b[15:-15], "b")
                     plt.plot(blink_downsampled[15:-15])
                     plt.subplot(2,3, 6)
                     #  extended shifted
                     plt.title(f"shifted by {_steps_downsampled}")
                     plt.plot(y_downsampled_shifted_eyelids[15:-15], "k")
-                    plt.plot(y_downsampled_shifted_std_r[15:-15], "r")
-                    plt.plot(y_downsampled_shifted_std_g[15:-15], "g")
-                    plt.plot(y_downsampled_shifted_std_b[15:-15], "b")
+                    plt.plot(y_downsampled_shifted_iris_diameters[15:-15], "y", label='iris diameter')
+                    plt.plot(y_downsampled_shifted_eyelids[15:-15]/y_downsampled_shifted_iris_diameters[15:-15], "c", label='normalized')
+                    # plt.plot(y_downsampled_shifted_std_r[15:-15], "r")
+                    # plt.plot(y_downsampled_shifted_std_g[15:-15], "g")
+                    # plt.plot(y_downsampled_shifted_std_b[15:-15], "b")
                     plt.plot(blink_downsampled_shifted[15:-15])
                 
                 else:
@@ -536,9 +613,11 @@ if __name__=="__main__":
                     plt.subplot(1,1, 1)
                     plt.title(f"original len: {blink_length}")
                     plt.plot(y_eyelids[15:-15], "k", label='eyelids distance')
-                    plt.plot(y_std_r[15:-15], "r", label='std_r (Red)')
-                    plt.plot(y_std_g[15:-15], "g", label='std_g (Green)')
-                    plt.plot(y_std_b[15:-15], "b", label='std_b (Blue)')
+                    plt.plot(y_iris_diameters_blink[15:-15], "y", label='iris diameter')
+                    plt.plot(y_eyelids[15:-15]/y_iris_diameters_blink[15:-15], "c", label='normalized')
+                    # plt.plot(y_std_r[15:-15], "r", label='std_r (Red)')
+                    # plt.plot(y_std_g[15:-15], "g", label='std_g (Green)')
+                    # plt.plot(y_std_b[15:-15], "b", label='std_b (Blue)')
                     plt.plot(blink[15:-15], label="Blink")
 
                 if _once_legend:
@@ -601,3 +680,5 @@ if __name__=="__main__":
     print(f"std_g: min {minall_g}, max {maxall_g}")
     print(f"std_b: min {minall_b}, max {maxall_b}")
     print(f"eyelids: min {minall_lids}, max {maxall_lids}")
+    print(f"iris diameter: min {minall_irisDiameter}, max {maxall_irisDiameter}")
+    print(f"pupil2corner: min {minall_pupil2corner}, max {maxall_pupil2corner}")
