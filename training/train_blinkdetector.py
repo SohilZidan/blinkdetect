@@ -27,8 +27,8 @@ import matplotlib.pyplot as plt
 
 
 def_anns_file = os.path.join(os.path.dirname(__file__),"..", "dataset","augmented_signals", "annotations.json")
-checkpoints_folder = os.path.join(os.path.dirname(__file__), "..", "checkpoint")
-best_checkpoints_folder = os.path.join(os.path.dirname(__file__), "..", "best_model")
+checkpoints_folder = os.path.join(os.path.dirname(__file__), "..", "checkpoint_raw")
+best_checkpoints_folder = os.path.join(os.path.dirname(__file__), "..", "best_model_raw")
 
 def parser():
     argparser = argparse.ArgumentParser()
@@ -39,8 +39,14 @@ def parser():
     argparser.add_argument("--channels", required=True, choices=['1C', '2C', '4C'])
     argparser.add_argument("--batch", type=int ,default=4)
     argparser.add_argument("--epoch", type=int ,default=50)
-    argparser.add_argument("--normalized", action="store_true")
-    argparser.add_argument("--earlystopping",action="store_true")
+
+    argparser.add_argument('--normalized', dest='normalized', action='store_true')
+    argparser.add_argument('--no-normalized', dest='normalized', action='store_false')
+    argparser.set_defaults(normalized=True)
+
+    argparser.add_argument('--earlystopping', dest='earlystopping', action='store_true')
+    argparser.add_argument('--no-earlystopping', dest='earlystopping', action='store_false')
+    argparser.set_defaults(earlystopping=True)
     
     return argparser.parse_args()
 
@@ -160,7 +166,7 @@ if __name__ == '__main__':
     cls_loss = CrossEntropyLoss()
     reg_loss = MSELoss()
     sig = Sigmoid()
-    optimizer = torch.optim.Adam(network.parameters(), lr=1e-4)#, amsgrad=True)
+    optimizer = torch.optim.Adam(network.parameters(), lr=1e-4)
     logging.info(optimizer)
 
     training_losses = []
@@ -292,11 +298,11 @@ if __name__ == '__main__':
         evaluator.run(dataloaders['val'])
         metrics = evaluator.state.metrics
         validation_losses.append(metrics['loss'])
-        pbar.log_message("----------------------------------")
-        pbar.log_message(
-            "Validation Results - Epoch: {} \nMetrics\n{}"
-            .format(engine.state.epoch, pprint.pformat(metrics)))
-        pbar.n = pbar.last_print_n = 0
+        # pbar.log_message("----------------------------------")
+        # pbar.log_message(
+        #     "Validation Results - Epoch: {} \nMetrics\n{}"
+        #     .format(engine.state.epoch, pprint.pformat(metrics)))
+        # pbar.n = pbar.last_print_n = 0
         logging.info("----------------------------------")
         logging.info(
             "Validation Results - Epoch: {} \nMetrics\n{}"
