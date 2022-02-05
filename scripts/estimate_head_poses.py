@@ -22,10 +22,6 @@ from utils.pose import calc_pose
 from utils.functions import plot_image
 from utils.pose import plot_pose_box
 
-
-
-
-
 def_config = os.path.join(lib_path, 'configs/mb1_120x120.yml')
 
 
@@ -138,7 +134,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='The demo of still image of 3DDFA_V2')
     parser.add_argument('--dataset', required=True, choices=["BlinkingValidationSetVideos", "eyeblink8", "talkingFace", "zju", "RN"])
     parser.add_argument('-rng', '--range', type=int, default=[0,-1], nargs=2)
-    parser.add_argument('--batch', type=int, default=32, help='number of frames to be saved as a batch')
+    parser.add_argument('--batch', type=int, default=256, help='number of frames to be saved as a batch')
     parser.add_argument('--resume', action='store_true', help='if true existed frames of an existed participant will not be replaced')
     # 
     parser.add_argument('-c', '--config', type=str, default=def_config)

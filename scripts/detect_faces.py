@@ -40,7 +40,7 @@ def parser():
     _parser.add_argument(
         '-rng', '--range', type=int, default=[0,-1], nargs=2)
     _parser.add_argument(
-        '--batch', type=int, default=32,
+        '--batch', type=int, default=256,
         help='number of frames to be saved as a batch')
     _parser.add_argument(
         '--resume', action='store_true',
