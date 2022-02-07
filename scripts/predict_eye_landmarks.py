@@ -171,7 +171,7 @@ if __name__=='__main__':
             _data_df = store['tracked_faces_dataset_01']
 
         # Output
-        output_path = os.path.join(dataset_root, "eye_landmarks_v2", args.dataset , video_name)
+        output_path = os.path.join(dataset_root, "eye_landmarks", args.dataset , video_name)
         output_file_path_csv = os.path.normpath(os.path.join(output_path, f"eyeinfo.csv"))
         output_file_path_hdf5 = os.path.normpath(os.path.join(output_path, f"eyeinfo.hdf5"))
 
@@ -233,6 +233,5 @@ if __name__=='__main__':
 
         # save
         _data_df.to_hdf(output_file_path_hdf5, "eyes_info_dataset_01")
-        print(_data_df.head())
 
     videos_progress.close()

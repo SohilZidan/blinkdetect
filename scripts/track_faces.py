@@ -719,6 +719,7 @@ if __name__=="__main__":
                 right_eye_x, right_eye_y = [0,0]
                 nose_x, nose_y = [0,0]
                 yaw, pitch, roll = [0,0,0]
+                _face = "face_1"
                 if _faces_number == 0:
                     data_array.append([video_name, _frame, _face,_img_path, _faces_not_found, _faces_number, left,top,right,bottom, left_eye_x, left_eye_y, right_eye_x, right_eye_y, nose_x, nose_y, yaw, pitch, roll])
                 # face data
@@ -801,4 +802,5 @@ if __name__=="__main__":
             # iterations_progress.set_postfix(f"results saved into {video_name}")
             # print(f"results saved into {faceinfo_file_path_hdf5}")
         iterations_progress.close()
+
     videos_progress.close()

@@ -124,5 +124,5 @@ if __name__ == "__main__":
 
             iteration_progress.set_postfix(saved=f"{len(_all_detections)} dets saved")
         iteration_progress.close()
-    
+
     videos_progress.close()
