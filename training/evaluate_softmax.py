@@ -90,7 +90,10 @@ def draw_angles_dist(y_list, y_pred_list, _yaws, _pitchs, angles_dist_file):
 
 # new
 def draw_score_dist(y_list, scores, scores_dist_file):
-    y_pred_list = torch.max(scores,1)
+
+    y_pred_list = torch.max(torch.tensor(scores),1)
+    y_pred_list = y_pred_list[1]
+
     status = []
     scores_0 = [_0 for _0, _ in scores]
     scores_1 = [_1 for _, _1 in scores]
