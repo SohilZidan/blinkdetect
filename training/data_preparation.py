@@ -11,22 +11,18 @@ from math import ceil, floor
 import argparse
 import pickle
 import random
-
-import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-
-import numpy as np
 import tqdm
-
-from argusutil.annotation.annotation import AnnotationOfIntervals, Interval, Unit
-
-from blinkdetect.argus_utils import get_intervals, get_intervals_between
-from blinkdetect.argus_utils import get_blinking_annotation
-from blinkdetect.signal_1d import shift
-from blinkdetect.preprocessing import resample_noblink, upsample_blink, downsample_blink
-
+import numpy as np
 import matplotlib.pyplot as plt
 
+from argusutil.annotation.annotation import (
+    AnnotationOfIntervals, Interval, Unit
+    )
+from blinkdetect.argus_utils import (
+    get_intervals, get_intervals_between, get_blinking_annotation)
+from blinkdetect.signal_1d import shift
+from blinkdetect.preprocessing import (
+    resample_noblink, upsample_blink, downsample_blink)
 from blinkdetect.common import read_annotations_tag
 
 
@@ -36,8 +32,8 @@ def check_positive(value):
         raise argparse.ArgumentTypeError("%s is an invalid positive int value" % value)
     return ivalue
 
-if __name__=="__main__":
-    
+
+def parse():
     parser = argparse.ArgumentParser()
     parser.add_argument("--output_folder", default="")
     parser.add_argument('--dataset', required=True, choices=["BlinkingValidationSetVideos", "eyeblink8", "talkingFace", "zju", "RN"])
@@ -54,41 +50,30 @@ if __name__=="__main__":
     parser.add_argument("--eval", action="store_true")
     parser.add_argument("--ratio", type=float, default=0)
     args = parser.parse_args()
-    
-    print(vars(args))
+    return args
 
-    # min_std_r=0.0
-    # max_std_r= 70.57724795565552
-    # min_std_g= 0.0
-    # max_std_g =69.65935905429274
-    # min_std_b= 0.0
-    # max_std_b =72.89523973711425
-    # min_eyelids= 0
-    # max_eyelids= 10.102511040619552
-
+def main(cfgs):
     random.seed(192020)
 
-    # OUTPUT
+    # OUTPUTs
     dataset_root = os.path.join(os.path.dirname(__file__), "..", "dataset")
-    dataset = os.path.join(dataset_root, args.dataset)
-    if args.output_folder == "":
+    dataset = os.path.join(dataset_root, cfgs.dataset)
+    if cfgs.output_folder == "":
         annotations_folder = os.path.join(dataset_root, "augmented_signals")
-        args.output_folder = annotations_folder
+        cfgs.output_folder = annotations_folder
     else:
-        annotations_folder = os.path.join(args.output_folder, args.dataset)
+        annotations_folder = os.path.join(cfgs.output_folder, cfgs.dataset)
     os.makedirs(annotations_folder, exist_ok=True)
-    # 
-    _version_folder = os.path.join(annotations_folder, args.suffix)
+
+    _version_folder = os.path.join(annotations_folder, cfgs.suffix)
     meta_file = os.path.join(_version_folder, "meta.json")
     output_folder = os.path.join(_version_folder, "plots")
-    # 
-    # if os.path.exists(_version_folder):
-    #     shutil.rmtree(_version_folder)
-    os.makedirs(_version_folder, exist_ok=True)
-    # if os.path.exists(output_folder):
-    #     shutil.rmtree(output_folder)
-    if args.generate_plots:
-        import shutil
+
+    if os.path.exists(_version_folder):
+        shutil.rmtree(_version_folder)
+    os.makedirs(_version_folder)
+
+    if cfgs.generate_plots:
         if os.path.exists(output_folder):
             shutil.rmtree(output_folder)
         os.makedirs(output_folder)
@@ -121,30 +106,30 @@ if __name__=="__main__":
     minall_irisDiameter = 20
     maxall_irisDiameter = 0
 
-    #
     # video paths
     annds_paths = []
     for root,dirs, files in os.walk(dataset):
         for dir in files:
             name, ext = os.path.splitext(dir)
-            if args.dataset!='BlinkingValidationSetVideos':
+            if cfgs.dataset!='BlinkingValidationSetVideos':
                 if ext in [".tag"]:
                     annds_paths.append(os.path.join(root,dir))
             elif ext in [".mp4"]:
                 annds_paths.append(os.path.join(root,dir))
-    #
-    #
-    # print(annds_paths)
+
     vid_progress = tqdm.tqdm(annds_paths, total=len(annds_paths), desc="participants")
     for anns_path in vid_progress:
         video_name = os.path.dirname(anns_path)
         video_name = os.path.relpath(video_name, dataset)
         vid_progress.set_postfix(vid=video_name)
-        # print(video_name)
-        # 
+
+        # read annotations
+        if cfgs.dataset=="BlinkingValidationSetVideos":
+            blinking_anns = get_blinking_annotation(video_name)
+        else:
+            closeness_list, blinking_anns = read_annotations_tag(anns_path)
         # read data
-        # 
-        signals_path = os.path.join(dataset_root,"tracked_faces_v2", args.dataset, video_name, "signals")
+        signals_path = os.path.join(dataset_root,"long_sequence", cfgs.dataset, video_name, "signals")
         std_path = os.path.join(signals_path, "stds.pkl")
         eyelids_path = os.path.join(signals_path, "eyelids_dists.pkl")
 
@@ -195,21 +180,19 @@ if __name__=="__main__":
         minall_pupil2corner = min((minall_pupil2corner,min(pupil2corners)))
         maxall_pupil2corner = max((maxall_pupil2corner,max(pupil2corners)))
 
-        if args.dataset=="BlinkingValidationSetVideos":
-            blinking_anns = get_blinking_annotation(video_name)
-        else:
-            closeness_list, blinking_anns = read_annotations_tag(anns_path)
-
+        # convert to interval
         face_found_anns = get_intervals(faces_not_found, val=0)
-        yaw_preds = get_intervals_between(yaw_angles, val=args.yaw_range)
-        pitch_preds = get_intervals_between(pitch_angles, val=args.pitch_range)
-        
-        # new 
+        yaw_preds = get_intervals_between(yaw_angles, val=cfgs.yaw_range)
+        pitch_preds = get_intervals_between(pitch_angles, val=cfgs.pitch_range)
+
+        # annotations customization
         blinking_anns = blinking_anns.intersect(yaw_preds)
         blinking_anns = blinking_anns.intersect(pitch_preds)
 
         _noblink_range = [0, None]
         _once_legend = True
+
+        if len(blinking_anns) == 0 and not cfgs.eval: exit("No Blinks are found")
 
         for _blink in tqdm.tqdm(blinking_anns, total=len(blinking_anns), desc="blinks"):
             blink_length = _blink.stop - _blink.start+1
@@ -223,7 +206,7 @@ if __name__=="__main__":
                 _from = _noblink_range[0]
                 _to = _noblink_range[1]
                 _interval = AnnotationOfIntervals(Unit.INDEX, [Interval(_from, _to)])
-                if args.face_found:
+                if cfgs.face_found:
                     _valid_intervals = face_found_anns.intersect(_interval)
                 else:
                     _valid_intervals = _interval
@@ -237,12 +220,12 @@ if __name__=="__main__":
                     if _interval.length+1 < 30:
                         continue
                     #
-                    _n_frames_skipped = 30 - args.overlap
+                    _n_frames_skipped = 30 - cfgs.overlap
                     _max_examples = floor((_interval.length+1)/_n_frames_skipped)
                     _n_required_examples = int(_max_examples)
                     # check if #no-blink is required
-                    if args.no_blink is not None: 
-                        _n_required_examples = args.no_blink if args.no_blink < _max_examples else _max_examples
+                    if cfgs.no_blink is not None: 
+                        _n_required_examples = cfgs.no_blink if cfgs.no_blink < _max_examples else _max_examples
 
                     random_start = _interval.start
                     _examples = 0
@@ -286,7 +269,7 @@ if __name__=="__main__":
                             "end": 0}
 
                         # plots
-                        if args.generate_plots:
+                        if cfgs.generate_plots:
                             fig, _ = plt.subplots(1, 1)
                             plt.title(f"{random_start}-{random_end}")
                             plt.plot(y_eyelids_noblink, "k", label='eyelids distance')
@@ -365,7 +348,7 @@ if __name__=="__main__":
                 "end": int(extended_blink_interval.stop-15)}
             annotations_1.append(_ann)
 
-            if not args.eval:
+            if not cfgs.eval:
                 # # # # # #
                 # Shifted #
                 # # # # # #
@@ -539,11 +522,11 @@ if __name__=="__main__":
                 annotations_1.append(_ann)
 
             # plots
-            if args.generate_plots:
+            if cfgs.generate_plots:
                 
                 # TODO:
                 #   - fix plot size
-                if not args.eval:
+                if not cfgs.eval:
                     # plotting
                     fig, _ = plt.subplots(2, 3)
                     # original
@@ -631,18 +614,18 @@ if __name__=="__main__":
     
     vid_progress.close()
     
-    if args.ratio > 0 and len(annotations_0) > len(annotations_1):
-        ratio = min(int(len(annotations_1) * args.ratio), len(annotations_0))
-        print("1*ratio:", int(len(annotations_1) * args.ratio))
+    if cfgs.ratio > 0 and len(annotations_0) > len(annotations_1):
+        ratio = min(int(len(annotations_1) * cfgs.ratio), len(annotations_0))
+        print("1*ratio:", int(len(annotations_1) * cfgs.ratio))
         print("0:",len(annotations_0))
         print("1:",len(annotations_1))
         equal_annotation_0 = random.sample(annotations_0, ratio)
         equal_annotation_1 = annotations_1
-    elif args.equal:
+    elif cfgs.equal:
         _max_num = min(len(annotations_0), len(annotations_1))
         equal_annotation_0 = random.sample(annotations_0, _max_num)
         equal_annotation_1 = random.sample(annotations_1, _max_num)
-    elif args.zero:
+    elif cfgs.zero:
         equal_annotation_0 = []
         equal_annotation_1 = annotations_1
     else:
@@ -650,31 +633,27 @@ if __name__=="__main__":
         equal_annotation_1 = annotations_1
 
     annotations = equal_annotation_0 + equal_annotation_1
-    # save annotations in a file
-    annotations_folder_path = os.path.join(annotations_folder, f"annotations-{args.suffix}.json")
+
+    # save annotations
+    annotations_folder_path = os.path.join(annotations_folder, f"annotations-{cfgs.suffix}.json")
     with open(annotations_folder_path, "w") as f:
         json.dump(annotations, f)
-    
-    # if args.eval:
-    #     all_blinks *= 2
-    # else:
-    #     all_blinks *= 6
+
     # save meta
-    args_dict = vars(args)
-    args_dict['all_blinks'] = len(equal_annotation_1)
-    args_dict['all_no_blinks'] = len(equal_annotation_0)
-    args_dict['shortest_blink'] = int(shortest_blink)
-    args_dict['longest_blink'] = int(longest_blink)
+    cfgs_dict = vars(cfgs)
+    cfgs_dict['all_blinks'] = len(equal_annotation_1)
+    cfgs_dict['all_no_blinks'] = len(equal_annotation_0)
+    cfgs_dict['shortest_blink'] = int(shortest_blink)
+    cfgs_dict['longest_blink'] = int(longest_blink)
 
     with open(meta_file, "w") as f:
-        json.dump(args_dict, f)
+        json.dump(cfgs_dict, f)
 
     # Satatistics
-    print(f"All blinks: {args_dict['all_blinks']}")
-    print(f"ALL no blinks: {args_dict['all_no_blinks']}")
+    print(f"All blinks: {cfgs_dict['all_blinks']}")
+    print(f"ALL no blinks: {cfgs_dict['all_no_blinks']}")
     print(f"shortest blink: {shortest_blink}")
     print(f"longest blink: {longest_blink}")
-
 
     print(f"std_r: min {minall_r}, max {maxall_r}")
     print(f"std_g: min {minall_g}, max {maxall_g}")
@@ -682,3 +661,8 @@ if __name__=="__main__":
     print(f"eyelids: min {minall_lids}, max {maxall_lids}")
     print(f"iris diameter: min {minall_irisDiameter}, max {maxall_irisDiameter}")
     print(f"pupil2corner: min {minall_pupil2corner}, max {maxall_pupil2corner}")
+
+
+if __name__=="__main__":
+    cfgs = parse()
+    main(cfgs)
