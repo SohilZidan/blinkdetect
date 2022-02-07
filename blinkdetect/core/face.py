@@ -24,18 +24,18 @@ def extract_face(img_path: Union[str, np.ndarray]) -> Dict[str, Any]:
     """
 
     # face detection
-    dets = retina_detect_faces(img_path = img_path, model=model)
+    dets = retina_detect_faces(img_path=img_path, model=model)
 
     if type(dets) is tuple:
-        faces_not_found=1
+        faces_not_found = 1
         n_faces = 0
     else:
-        faces_not_found=0
+        faces_not_found = 0
         n_faces = len(dets.keys())
 
     detections = {
-        "faces": None, 
-        "faces_not_found": faces_not_found, 
+        "faces": dets,
+        "faces_not_found": faces_not_found,
         "faces_number": n_faces
     }
 
