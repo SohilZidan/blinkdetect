@@ -1,4 +1,5 @@
 import json
+from random import sample
 import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
@@ -100,17 +101,16 @@ class BlinkDataset2C(BlinkDataSet):
 
 
 class ToTensor(object):
+    features_list = ["std_r", "std_g", "std_b", "eyelids_dist", "iris_diameter"]
     def __call__(self, sample):
-        res = {
-          ftr: torch.tensor(sample[ftr])
-          for ftr, val in sample.items()}
-        return res
+        for ftr in self.features_list:
+            sample[ftr] = torch.tensor(sample[ftr])
+        return sample
 
 
 class Normalize(object):
     """Normalized
     """
-
     def __init__(self, feature_range=(0,1)):
         self._min = feature_range[0]
         self._max = feature_range[1]

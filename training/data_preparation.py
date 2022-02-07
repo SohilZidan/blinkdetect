@@ -192,8 +192,6 @@ def main(cfgs):
         _noblink_range = [0, None]
         _once_legend = True
 
-        if len(blinking_anns) == 0 and not cfgs.eval: exit("No Blinks are found")
-
         for _blink in tqdm.tqdm(blinking_anns, total=len(blinking_anns), desc="blinks"):
             blink_length = _blink.stop - _blink.start+1
 
@@ -633,6 +631,8 @@ def main(cfgs):
         equal_annotation_1 = annotations_1
 
     annotations = equal_annotation_0 + equal_annotation_1
+
+    if len(annotations) == 0: exit("No Blinks are found")
 
     # save annotations
     annotations_folder_path = os.path.join(annotations_folder, f"annotations-{cfgs.suffix}.json")
