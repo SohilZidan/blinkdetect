@@ -138,7 +138,7 @@
    ```bash
    DATASET_NAME=<FILL HERE>
    MODELS_FOLDER=checkpoints && \
-   python3 <repo_root>/training/evaluate.py \
+   python3 <repo_root>/training/evaluate_softmax.py \
    --model ./$MODELS_FOLDER/archtest-False-1C-50.pth \
    --annotation_file <repo_root>/dataset/augmented_signals/versions/$DATASET_NAME/annotations-vtest.json \
    --dataset_path <repo_root>/dataset/augmented_signals/versions/$DATASET_NAME/vtest/training \

@@ -88,31 +88,50 @@ def draw_angles_dist(y_list, y_pred_list, _yaws, _pitchs, angles_dist_file):
     plt.savefig(angles_dist_file)
 
 
-def draw_scores_dist(
-    test_yaw_pitch_rnb_fp_fn,
-    test_yaw_pitch_rnb_tp,
-    test_yaw_pitch_rnb_tn,
-    angles_dist_file):    
-    if len(test_yaw_pitch_rnb_tp) > 0:
-        *_, _pitch_stds, _scores_0, _scores_1 = test_yaw_pitch_rnb_tp
-        plt.scatter(_scores_0, _scores_1, s=8, marker="o", c='b', label=f"TP: {len(_pitch_stds)}")
-    if len(test_yaw_pitch_rnb_tn) > 0:
-        *_, _pitch_stds, _scores_0, _scores_1 = test_yaw_pitch_rnb_tn
-        plt.scatter(_scores_0, _scores_1, s=8, marker="o", c='r', label=f"TN: {len(_pitch_stds)}")
-    if len(test_yaw_pitch_rnb_fp_fn) > 0:
-        *_, _pitch_stds, _scores_0, _scores_1 = test_yaw_pitch_rnb_fp_fn
-        plt.scatter(_scores_0, _scores_1, s=8, marker="^", c="k",  label=f"FP+FN: {len(_pitch_stds)}")
+# new
+def draw_score_dist(y_list, scores, scores_dist_file):
+    y_pred_list = torch.max(scores,1)
+    status = []
+    scores_0 = [_0 for _0, _ in scores]
+    scores_1 = [_1 for _, _1 in scores]
+    for x, x_pred in zip(y_list, y_pred_list):
+        if x == x_pred: st = "TP+TN"
+        if x != x_pred and x == 0: st = "FP"
+        if x != x_pred and x == 1: st = "FN"
+        status.append(st)
 
-    if len(test_yaw_pitch_rnb_fp_fn + test_yaw_pitch_rnb_tp + test_yaw_pitch_rnb_tn) == 0:
-        return
+    df = pd.DataFrame.from_dict({"status": status, "score 0": scores_0, "score 1": scores_1})
+    g = sns.FacetGrid(df, col="status", col_wrap=3, hue="status", col_order=["TP+TN", "FP", "FN", ])
+    g.map(sns.scatterplot, "score 0", "score 1",)
 
-    plt.axvline(0,c="k")
-    plt.axhline(0,c="k")
-    plt.xlabel("scores 0")
-    plt.ylabel("scores 1")
-    plt.legend()
-    plt.savefig(angles_dist_file, dpi=300, bbox_inches='tight')
-    plt.close()
+    plt.savefig(scores_dist_file)
+
+
+# def draw_scores_dist(
+#     test_yaw_pitch_rnb_fp_fn,
+#     test_yaw_pitch_rnb_tp,
+#     test_yaw_pitch_rnb_tn,
+#     angles_dist_file):    
+#     if len(test_yaw_pitch_rnb_tp) > 0:
+#         *_, _pitch_stds, _scores_0, _scores_1 = test_yaw_pitch_rnb_tp
+#         plt.scatter(_scores_0, _scores_1, s=8, marker="o", c='b', label=f"TP: {len(_pitch_stds)}")
+#     if len(test_yaw_pitch_rnb_tn) > 0:
+#         *_, _pitch_stds, _scores_0, _scores_1 = test_yaw_pitch_rnb_tn
+#         plt.scatter(_scores_0, _scores_1, s=8, marker="o", c='r', label=f"TN: {len(_pitch_stds)}")
+#     if len(test_yaw_pitch_rnb_fp_fn) > 0:
+#         *_, _pitch_stds, _scores_0, _scores_1 = test_yaw_pitch_rnb_fp_fn
+#         plt.scatter(_scores_0, _scores_1, s=8, marker="^", c="k",  label=f"FP+FN: {len(_pitch_stds)}")
+
+#     if len(test_yaw_pitch_rnb_fp_fn + test_yaw_pitch_rnb_tp + test_yaw_pitch_rnb_tn) == 0:
+#         return
+
+#     plt.axvline(0,c="k")
+#     plt.axhline(0,c="k")
+#     plt.xlabel("scores 0")
+#     plt.ylabel("scores 1")
+#     plt.legend()
+#     plt.savefig(angles_dist_file, dpi=300, bbox_inches='tight')
+#     plt.close()
 
 
 def make_gif(frame_folder, name):
@@ -236,24 +255,26 @@ if __name__=="__main__":
 
     tn, fp, fn, tp = confusion_matrix(y_list, y_pred_list).ravel()
 
-    # Draw_angles_dist
+    # Draw angles distribution
     angles_dist_file = os.path.join(dataset_path, f"[fp+fn]dist-{normalized}-{num_chan}-{_batch}-{name}.png")
     draw_angles_dist(y_list, y_pred_list, _yaws, _pitchs, angles_dist_file)
+    # Draw scores distribution
+    scores_dist_file = os.path.join(dataset_path, f"[scores]dist-{normalized}-{num_chan}-{_batch}-{name}.png")
+    draw_score_dist(y_list, scores, scores_dist_file)
 
-
-    # test_combined = [(x,x_pred, _id, _rng, (_yaw[14]+_yaw[15])/2, (_pitch[14]+_pitch[15])/2) for x, x_pred, _id, _rng,_yaw, _pitch in list(zip(y_list, y_pred_list, _pids, _rngs, _yaws, _pitchs)) if x!=x_pred]
+    test_combined = [(x,x_pred, _id, _rng, (_yaw[14]+_yaw[15])/2, (_pitch[14]+_pitch[15])/2) for x, x_pred, _id, _rng,_yaw, _pitch in list(zip(y_list, y_pred_list, _pids, _rngs, _yaws, _pitchs)) if x!=x_pred]
     # #
-    test_yaw_pitch_rnb_fp_fn = [(_pid, x,x_pred, _rng, (_yaw[14]+_yaw[15])/2, np.std(_yaw), (_pitch[14]+_pitch[15])/2, np.std(_pitch), score_0, score_1) for _pid, x, x_pred, _rng, _yaw,_pitch, score_0, score_1 in list(zip(_pids,y_list, y_pred_list, _rngs, _yaws, _pitchs, scores_0, scores_1)) if x!=x_pred]
-    test_yaw_pitch_rnb_fp_fn = list(zip(*test_yaw_pitch_rnb_fp_fn))
+    # test_yaw_pitch_rnb_fp_fn = [(_pid, x,x_pred, _rng, (_yaw[14]+_yaw[15])/2, np.std(_yaw), (_pitch[14]+_pitch[15])/2, np.std(_pitch), score_0, score_1) for _pid, x, x_pred, _rng, _yaw,_pitch, score_0, score_1 in list(zip(_pids,y_list, y_pred_list, _rngs, _yaws, _pitchs, scores_0, scores_1)) if x!=x_pred]
+    # test_yaw_pitch_rnb_fp_fn = list(zip(*test_yaw_pitch_rnb_fp_fn))
     # # tp+tn
     # test_yaw_pitch_rnb_tp_tn = [(_pid, x,x_pred, _rng, (_yaw[14]+_yaw[15])/2, np.std(_yaw), (_pitch[14]+_pitch[15])/2, np.std(_pitch), score_0, score_1) for _pid, x, x_pred, _rng, _yaw,_pitch, score_0, score_1 in list(zip(_pids, y_list, y_pred_list, _rngs, _yaws, _pitchs, scores_0, scores_1)) if x==x_pred]
     # test_yaw_pitch_rnb_tp_tn = list(zip(*test_yaw_pitch_rnb_tp_tn))
     # New: TP
-    test_yaw_pitch_rnb_tp = [(_pid, x,x_pred, _rng, (_yaw[14]+_yaw[15])/2, np.std(_yaw), (_pitch[14]+_pitch[15])/2, np.std(_pitch), score_0, score_1) for _pid, x, x_pred, _rng, _yaw,_pitch, score_0, score_1 in list(zip(_pids, y_list, y_pred_list, _rngs, _yaws, _pitchs, scores_0, scores_1)) if x==x_pred and x==1]
-    test_yaw_pitch_rnb_tp = list(zip(*test_yaw_pitch_rnb_tp))
+    # test_yaw_pitch_rnb_tp = [(_pid, x,x_pred, _rng, (_yaw[14]+_yaw[15])/2, np.std(_yaw), (_pitch[14]+_pitch[15])/2, np.std(_pitch), score_0, score_1) for _pid, x, x_pred, _rng, _yaw,_pitch, score_0, score_1 in list(zip(_pids, y_list, y_pred_list, _rngs, _yaws, _pitchs, scores_0, scores_1)) if x==x_pred and x==1]
+    # test_yaw_pitch_rnb_tp = list(zip(*test_yaw_pitch_rnb_tp))
     # New: TN
-    test_yaw_pitch_rnb_tn = [(_pid, x,x_pred, _rng, (_yaw[14]+_yaw[15])/2, np.std(_yaw), (_pitch[14]+_pitch[15])/2, np.std(_pitch), score_0, score_1) for _pid, x, x_pred, _rng, _yaw,_pitch, score_0, score_1 in list(zip(_pids, y_list, y_pred_list, _rngs, _yaws, _pitchs, scores_0, scores_1)) if x==x_pred and x==0]
-    test_yaw_pitch_rnb_tn = list(zip(*test_yaw_pitch_rnb_tn))
+    # test_yaw_pitch_rnb_tn = [(_pid, x,x_pred, _rng, (_yaw[14]+_yaw[15])/2, np.std(_yaw), (_pitch[14]+_pitch[15])/2, np.std(_pitch), score_0, score_1) for _pid, x, x_pred, _rng, _yaw,_pitch, score_0, score_1 in list(zip(_pids, y_list, y_pred_list, _rngs, _yaws, _pitchs, scores_0, scores_1)) if x==x_pred and x==0]
+    # test_yaw_pitch_rnb_tn = list(zip(*test_yaw_pitch_rnb_tn))
     # # New: FP
     # test_yaw_pitch_rnb_fp = [(_pid, x,x_pred, _rng, (_yaw[14]+_yaw[15])/2, np.std(_yaw), (_pitch[14]+_pitch[15])/2, np.std(_pitch), score_0, score_1) for _pid, x, x_pred, _rng, _yaw,_pitch, score_0, score_1 in list(zip(_pids,y_list, y_pred_list, _rngs, _yaws, _pitchs, scores_0, scores_1)) if x!=x_pred and x_pred==1]
     # test_yaw_pitch_rnb_fp = list(zip(*test_yaw_pitch_rnb_fp))
@@ -261,6 +282,7 @@ if __name__=="__main__":
     # test_yaw_pitch_rnb_fn = [(_pid, x,x_pred, _rng, (_yaw[14]+_yaw[15])/2, np.std(_yaw), (_pitch[14]+_pitch[15])/2, np.std(_pitch), score_0, score_1) for _pid, x, x_pred, _rng, _yaw,_pitch, score_0, score_1 in list(zip(_pids,y_list, y_pred_list, _rngs, _yaws, _pitchs, scores_0, scores_1)) if x!=x_pred and x_pred==0]
     # test_yaw_pitch_rnb_fn = list(zip(*test_yaw_pitch_rnb_fn))
 
+    # Summary
     print("testing performace")
     logging.info("testing performace")
     print(f"duration mse: {avg_duration_MSE}")
@@ -272,11 +294,7 @@ if __name__=="__main__":
     print(classification_report(y_list, y_pred_list))
     logging.info(classification_report(y_list, y_pred_list))
 
-    # angles_dist_file = os.path.join(dataset_path, f"[fp+fn]dist-{normalized}-{num_chan}-{_batch}-{name}.png")
-    # draw_angles_dist(test_yaw_pitch_rnb_fp, test_yaw_pitch_rnb_fn, test_yaw_pitch_rnb_tp, test_yaw_pitch_rnb_tn, angles_dist_file)
-    scores_dist_file = os.path.join(dataset_path, f"[scores]dist-{normalized}-{num_chan}-{_batch}-{name}.png")
-    draw_scores_dist(test_yaw_pitch_rnb_fp_fn, test_yaw_pitch_rnb_tp, test_yaw_pitch_rnb_tn, scores_dist_file)
-    #
+    # draw_scores_dist(test_yaw_pitch_rnb_fp_fn, test_yaw_pitch_rnb_tp, test_yaw_pitch_rnb_tn, scores_dist_file)
 
     # if args.generate_fnfp_plots:
     #     fp_fn = os.path.join(dataset_path, f"fp+fn-{normalized}-{num_chan}-{_batch}-softmax")
