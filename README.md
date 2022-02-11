@@ -9,9 +9,9 @@
 5. signals generation
 
 
-### TODO
+<!-- ### TODO
 * debugging code -- logging
-* configs
+* configs -->
 
 
 ### Building
@@ -145,3 +145,6 @@
    --dataset $DATASET_NAME \
    --generate_fnfp_plots
    ```
+
+## SVM with RT-BENE
+[link](./examples/rtbene/README.md)

@@ -12,6 +12,6 @@ __pycache__/
 
 
 \[NOTCHECKED\]*
-best_model
+best_model*
 checkpoint
 dataset*
