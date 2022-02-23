@@ -1,0 +1,25 @@
+paths:
+  root: dataset
+  datasets: [BlinkingValidationSetVideos, talkingFace, RN, eyeblink8, zju]
+
+# training:
+#   dataset: BlinkingValidationSetVideos
+
+pipeline:
+  version: 0.1
+  desc: >
+    this is a multiline
+    description.
+    a pipe i
+  steps:
+    - name: "face detection"
+      command: detect_faces.py
+      args: ["--argname", "value"]
+    - name: "face tracking"
+      command: track_faces.py
+    - name: "head pose"
+      command: estimate_head_poses.py
+    - name: "eye landmarks"
+      command: estimate_eye_landmarks.py
+    - name: "signals generation"
+      command: generate_signals.py
