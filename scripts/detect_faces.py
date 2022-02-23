@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # coding: utf-8
 
-from email.mime import base
 import os
 import glob
 import argparse
@@ -53,7 +52,6 @@ dataset_root = os.path.join(os.path.dirname(__file__), "..", "dataset")
 if __name__ == "__main__":
     base_cfgs = load_cfgs()
     args = parser(base_cfgs)
-    # start, end = args.range
     resume = args.resume
     dataset = os.path.normpath(os.path.join(dataset_root, args.dataset))
 
@@ -65,9 +63,9 @@ if __name__ == "__main__":
             if ext in [".avi", ".mov", ".wmv", ".mp4"]:
                 videos_paths.append(os.path.join(root, dir))
 
-    #
     videos_progress = tqdm.tqdm(videos_paths, total=len(
         videos_paths), desc="face detection")
+
     for video_path in videos_progress:
         video_name = os.path.dirname(video_path)
         video_name = os.path.relpath(video_name, dataset)
@@ -77,6 +75,7 @@ if __name__ == "__main__":
         # input
         frames_root = os.path.normpath(os.path.join(
             os.path.dirname(video_path), "frames"))
+
         if not os.path.exists(frames_root):
             continue
 
@@ -101,7 +100,6 @@ if __name__ == "__main__":
         frames_excepted = set(_except_frames)
         _images = set(glob.glob(f"{frames_root}/*.png"))
         _images = sorted(_images.difference(frames_excepted))
-
         total_imgs = len(_images)
         batch = args.batch
 

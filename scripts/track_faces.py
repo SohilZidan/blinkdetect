@@ -32,7 +32,7 @@ def parser():
     _parser = argparse.ArgumentParser()
     _parser.add_argument('--dataset', required=True, choices=["BlinkingValidationSetVideos", "eyeblink8", "talkingFace", "zju", "RN"])
     _parser.add_argument('-rng', '--range', type=int, default=[0,-1], nargs=2)
-    _parser.add_argument('--batch', type=int, default=32, help='number of frames to be saved as a batch')
+    _parser.add_argument('--batch', type=int, default=256, help='number of frames to be saved as a batch')
     _parser.add_argument('--resume', action='store_true', help='if true existed frames of an existed participant will not be replaced')
     # _parser.add_argument('--deepface', action='store_true', help='if to use deepface in tracking or not')
     _parser.add_argument('--method', type=str, choices=['deepface', 'klt', 'normal'], default='normal')
@@ -719,6 +719,7 @@ if __name__=="__main__":
                 right_eye_x, right_eye_y = [0,0]
                 nose_x, nose_y = [0,0]
                 yaw, pitch, roll = [0,0,0]
+                _face = "face_1"
                 if _faces_number == 0:
                     data_array.append([video_name, _frame, _face,_img_path, _faces_not_found, _faces_number, left,top,right,bottom, left_eye_x, left_eye_y, right_eye_x, right_eye_y, nose_x, nose_y, yaw, pitch, roll])
                 # face data
@@ -801,4 +802,5 @@ if __name__=="__main__":
             # iterations_progress.set_postfix(f"results saved into {video_name}")
             # print(f"results saved into {faceinfo_file_path_hdf5}")
         iterations_progress.close()
+
     videos_progress.close()

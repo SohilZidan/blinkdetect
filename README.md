@@ -9,17 +9,17 @@
 5. signals generation
 
 
-### TODO
+<!-- ### TODO
 * debugging code -- logging
-* configs
+* configs -->
 
 
 ### Building
-* clone this repository: `git clone --recursive <project url>`
+* clone this repository: `git clone -b dev --recursive https://SohilZidan@bitbucket.org/nipg/blinkdetection.git blinkdetection`
 * `git submodule update --init --recursive`
-* cd <project url>
+* cd blinkdetection
 * sh ./build.sh
-* export PYTHONPATH=<path of the repo>
+* export PYTHONPATH=`<path of the cloned repo>`
 
 ### Preprocessing Steps
 1. generate frames of the videos
@@ -138,10 +138,13 @@
    ```bash
    DATASET_NAME=<FILL HERE>
    MODELS_FOLDER=checkpoints && \
-   python3 <repo_root>/training/evaluate.py \
+   python3 <repo_root>/training/evaluate_softmax.py \
    --model ./$MODELS_FOLDER/archtest-False-1C-50.pth \
    --annotation_file <repo_root>/dataset/augmented_signals/versions/$DATASET_NAME/annotations-vtest.json \
    --dataset_path <repo_root>/dataset/augmented_signals/versions/$DATASET_NAME/vtest/training \
    --dataset $DATASET_NAME \
    --generate_fnfp_plots
    ```
+
+## SVM with RT-BENE
+[link](./examples/rtbene/README.md)

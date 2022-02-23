@@ -1,4 +1,10 @@
 #!/bin/bash
+: << DESC
+Input: 
+    $1 dataset name
+    $2 number of frames to output per video
+DESC
+
 
 # markers
 red=`tput setaf 1`
@@ -22,7 +28,7 @@ if [ -z "$1" ]; then
     echo "dataset name is not provided"
     exit 1 
 fi
-# echo "$1"
+
 
 if [ ! -d "$DATASETPATH" ]; then
     echo "folder $DATASETPATH does not exist"
@@ -62,7 +68,12 @@ for vid_path in ${VIDS[@]}; do
 
     # generate frames
 	echo "${yellow}generating frames for ${vid_path} ...${reset}"
-	ffmpeg -r 1 -i $vid_path -r 1 ${video_frames_folder}/$frame%06d.png
+    if [ -z "$2" ]; then
+        ffmpeg -r 1 -i $vid_path -r 1 ${video_frames_folder}/$frame%06d.png
+    else
+	    ffmpeg -r 1 -i $vid_path -frames $2 -r 1 ${video_frames_folder}/$frame%06d.png
+    fi
+    
 	if [ $? == 0 ]; then
 		echo "${green}[DONE]${reset}"
 	fi
