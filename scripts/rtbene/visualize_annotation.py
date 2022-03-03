@@ -1,13 +1,8 @@
 #!/usr/bin/env python3
-# coding: utf-8
-
 
 import os
-import glob
 import argparse
 import pandas as pd
-import shutil
-import tqdm
 import cv2
 
 
@@ -17,17 +12,17 @@ def parse():
         "--annotations",
         required=True,
         help="annotations file"
-        )
+    )
     parser.add_argument(
         "--output",
         required=True,
         help="output folder"
-        )
+    )
     parser.add_argument(
         "--samples",
         required=True, type=int,
         help="number of samples to visualize"
-        )
+    )
     return parser.parse_args()
 
 
@@ -70,7 +65,8 @@ if __name__ == "__main__":
         label = sample_idx[2]
         interval = sample_idx[3]
 
-        output_dir = os.path.join(args.output, "-".join([sub, str(label), interval]))
+        output_dir = os.path.join(
+            args.output, "-".join([sub, str(label), interval]))
         os.makedirs(output_dir, exist_ok=True)
 
         file_paths = sample_df["file_path"].values

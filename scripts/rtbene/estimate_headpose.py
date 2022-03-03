@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-# coding: utf-8
-
 
 import os
 import argparse
@@ -17,12 +15,12 @@ def parse():
         "--annotations",
         required=True,
         help="annotations file"
-        )
+    )
     parser.add_argument(
         "--output",
         required=True,
         help="output folder"
-        )
+    )
     return parser.parse_args()
 
 

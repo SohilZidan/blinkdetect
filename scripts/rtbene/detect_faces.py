@@ -1,16 +1,10 @@
 #!/usr/bin/env python3
-# coding: utf-8
-
 
 import os
 import argparse
 import pandas as pd
 import tqdm
 import cv2
-from typing import Union, Tuple
-import math
-from blinkdetect.common import read_annotations_tag, read_bbox_rush
-from blinkdetect.image.misc import cut_region
 
 # import mediapipe as mp
 # mp_face_detection = mp.solutions.face_detection
@@ -20,19 +14,18 @@ from retinaface import RetinaFace
 model = RetinaFace.build_model()
 
 
-
 def parse():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--annotations",
         required=True,
         help="annotations file"
-        )
+    )
     parser.add_argument(
         "--output",
         required=True,
         help="output folder"
-        )
+    )
     # parser.add_argument(
     #     "--face_annotations",
     #     default="",
@@ -92,7 +85,7 @@ def parse():
 #                                 image_cols, image_rows)
 
 #     if (
-#         (rect_start_point is None) or 
+#         (rect_start_point is None) or
 #         (rect_end_point is None) or
 #         (left_eye_pt is None) or
 #         (right_eye_pt is None)
@@ -129,7 +122,7 @@ if __name__ == "__main__":
 
     # iterate over all items
     file_paths = temporal_blinking["file_path"].values
-    
+
     for idx, file_path in enumerate(tqdm.tqdm(file_paths, total=len(file_paths))):
 
         img = cv2.imread(file_path, cv2.IMREAD_COLOR)
@@ -158,8 +151,6 @@ if __name__ == "__main__":
             faces.append(face_landmarks["facial_area"])
             left_eyes.append(face_landmarks["landmarks"]["left_eye"])
             right_eyes.append(face_landmarks["landmarks"]["right_eye"])
-        
-
 
     temporal_blinking["facial_area"] = faces
     temporal_blinking["left_eye"] = left_eyes

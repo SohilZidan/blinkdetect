@@ -1,16 +1,12 @@
 #!/usr/bin/env python3
-# coding: utf-8
-
 
 import os
 import argparse
 import shutil
 import pandas as pd
 import tqdm
-import cv2
 # from blinkdetect.common import read_annotations_tag, read_bbox_rush
 # from blinkdetect.image.misc import cut_region
-
 
 
 def parse():
@@ -19,14 +15,13 @@ def parse():
         "--annotations",
         required=True,
         help="annotations file"
-        )
+    )
     parser.add_argument(
         "--output",
         required=True,
         help="output folder"
-        )
+    )
     return parser.parse_args()
-
 
 
 if __name__ == "__main__":
@@ -39,7 +34,8 @@ if __name__ == "__main__":
     # iterate over subjects -> complete intervals
     subject_level = temporal_blinking.index.unique(0).tolist()
     for sub in tqdm.tqdm(subject_level, total=len(subject_level), desc="subject"):
-        complete_interval_level = temporal_blinking.loc[sub].index.unique(0).tolist()
+        complete_interval_level = temporal_blinking.loc[sub].index.unique(
+            0).tolist()
         for interval in tqdm.tqdm(complete_interval_level, total=len(complete_interval_level), desc="example", leave=False):
             interval_view = temporal_blinking.loc[(sub, interval)]
 

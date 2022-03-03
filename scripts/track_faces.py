@@ -20,7 +20,7 @@ import sys
 lib_dir = os.path.join(os.path.dirname(__file__), "..")
 sys.path.append(lib_dir)
 # 
-from blinkdetect.tracking.klt_tracker import KLT
+from bdlib.tracking.klt_tracker import KLT
 # 
 from scipy.spatial.distance import directed_hausdorff
 import scipy.optimize
