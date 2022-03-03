@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
-# coding: utf-8
 
-from email.mime import base
 import os
 import glob
 import argparse
-from math import ceil
 import pickle
 import tqdm
-from blinkdetect.core.face import extract_face
+from bdlib.core.face import extract_face
 from configs import load_cfgs
 
 

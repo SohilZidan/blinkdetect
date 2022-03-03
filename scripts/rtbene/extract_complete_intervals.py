@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# coding: utf-8
 
 import os
 import glob
@@ -7,8 +6,8 @@ import argparse
 from typing import List
 import numpy as np
 import pandas as pd
-from blinkdetect.common import read_annotations_tag, read_bbox_rush
-from blinkdetect.argus_utils import get_closed_eye_annotations
+from bdlib.common import read_annotations_tag, read_bbox_rush
+from bdlib.argus_utils import get_closed_eye_annotations
 
 
 def parse():
@@ -17,31 +16,31 @@ def parse():
         "--subject",
         required=True,
         help="subject identifier"
-        )
+    )
     parser.add_argument(
         "--blink_annotations",
         required=True,
         help="eye patches dir"
-        )
+    )
     parser.add_argument(
         "--faces",
         required=True,
         help="faces dir"
-        )
+    )
     parser.add_argument(
         "--output",
         required=True,
         help="output folder"
-        )
+    )
     parser.add_argument(
         "--threshold", type=int, default=30,
         help="minimum number of consecutive frames, and window size"
-        )
+    )
     parser.add_argument(
         "--dataset", type=str, default="rtbene",
         choices=["rush", "rtbene", "talkingFace", "rn"],
         help="minimum number of consecutive frames, and window size"
-        )
+    )
     return parser.parse_args()
 
 
@@ -69,21 +68,23 @@ def consecutive_frames(blink_data: pd.DataFrame, face_paths: List, threshold: in
             frames_group = []
 
         if frame_idx in blink_data.index and (blink_data.loc[frame_idx].item() < 0.5 or blink_data.loc[frame_idx].item() > 0.5):
-            _item = {"frame":frame_idx, "file_name": file_name, "file_path": face_path, "score": blink_data.loc[frame_idx].item()}
+            _item = {"frame": frame_idx, "file_name": file_name,
+                     "file_path": face_path, "score": blink_data.loc[frame_idx].item()}
             frames_group.append(_item)
             prev_idx = frame_idx
 
     if len(frames_group) >= threshold:
         frames_groups.append(frames_group)
 
-    frames_groups = [pd.DataFrame(_group).set_index("frame") for _group in frames_groups]
+    frames_groups = [pd.DataFrame(_group).set_index("frame")
+                     for _group in frames_groups]
 
     return frames_groups
 
 
 extract_frame = {
-        "file_name": lambda x: x.split('_')[1]
-        }
+    "file_name": lambda x: x.split('_')[1]
+}
 
 
 if __name__ == "__main__":
@@ -91,23 +92,25 @@ if __name__ == "__main__":
     args = parse()
 
     blinks_anns_file = args.blink_annotations
-    assert os.path.exists(blinks_anns_file), f"annotations file {blinks_anns_file} does not exist"
+    assert os.path.exists(
+        blinks_anns_file), f"annotations file {blinks_anns_file} does not exist"
 
     # read blink annotations -- csv
     if args.dataset in ["talkingFace", "rn"]:
         clossnes, _ = read_annotations_tag(blinks_anns_file)
         df = pd.DataFrame(
             {
-                "file_name": pd.Series(clossnes.keys()).astype("int32"), 
+                "file_name": pd.Series(clossnes.keys()).astype("int32"),
                 "score": pd.Series(clossnes.keys()).astype("int32")
-                })
+            })
         blink_data = df.set_index("file_name")
     elif args.dataset == "rtbene":
-        blink_data = pd.read_csv(blinks_anns_file, header=None, names=["file_name", "score"], index_col=0, converters=extract_frame)
+        blink_data = pd.read_csv(blinks_anns_file, header=None, names=[
+                                 "file_name", "score"], index_col=0, converters=extract_frame)
     elif args.dataset == "rush":
         face_bboxes = read_bbox_rush(args.blink_annotations)
         closed_eyes_idxes = get_closed_eye_annotations(args.subject)
-        frames_ids = sorted(face_bboxes.keys()) # filename with ext
+        frames_ids = sorted(face_bboxes.keys())  # filename with ext
         #
         frames = []
         scores = []
@@ -122,9 +125,9 @@ if __name__ == "__main__":
         #
         df = pd.DataFrame(
             {
-                "file_name": pd.Series(frames, dtype=np.dtype("int32")), 
+                "file_name": pd.Series(frames, dtype=np.dtype("int32")),
                 "score": pd.Series(scores, dtype=np.dtype("int32"))
-                })
+            })
         blink_data = df.set_index("file_name")
 
     # retrieve face paths
@@ -150,17 +153,22 @@ if __name__ == "__main__":
         frames_count = sub_group.shape[0]
 
         # only take parts with >= threshold length
-        if sub_group.shape[0] < args.threshold: continue
+        if sub_group.shape[0] < args.threshold:
+            continue
 
-        frame_range = "-".join([str(sub_group.index[0]), str(sub_group.index[-1])])
-        sub_data = list(zip(sub_group.index.values, sub_group["file_path"].values, sub_group['score'].values))
+        frame_range = "-".join([str(sub_group.index[0]),
+                               str(sub_group.index[-1])])
+        sub_data = list(zip(sub_group.index.values,
+                        sub_group["file_path"].values, sub_group['score'].values))
         data.extend(sub_data)
-        sub_index = list(zip([args.subject]*sub_group.shape[0], [frame_range]*sub_group.shape[0],))
+        sub_index = list(
+            zip([args.subject]*sub_group.shape[0], [frame_range]*sub_group.shape[0],))
         tmp_index.extend(sub_index)
 
     # build multiindex dataframe
     index = pd.MultiIndex.from_tuples(tmp_index, names=names)
-    temporal_blinking = pd.DataFrame(data, index=index, columns=["frame", "file_path", "score"])
+    temporal_blinking = pd.DataFrame(data, index=index, columns=[
+                                     "frame", "file_path", "score"])
     print(temporal_blinking.head())
 
     # prepare output path
@@ -169,4 +177,5 @@ if __name__ == "__main__":
         os.makedirs(parent_dir)
 
     # save into hdf5
-    temporal_blinking.to_hdf(args.output, "temporal_blinking", append=True, min_itemsize={"subject": 2, "frame_range": 20, "file_path": 70})
+    temporal_blinking.to_hdf(args.output, "temporal_blinking", append=True, min_itemsize={
+                             "subject": 2, "frame_range": 20, "file_path": 70})

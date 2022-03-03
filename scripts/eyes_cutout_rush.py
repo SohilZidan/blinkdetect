@@ -1,14 +1,16 @@
-import argparse
+#!/usr/bin/env python3
+
 import os
+import argparse
 import shutil
+import pickle
+import tqdm
 import cv2
 import torch
 import numpy as np
 from retinaface.commons.postprocess import alignment_procedure
-import tqdm
-import pickle
-from blinkdetect.models.facemesh import FaceMesh
-from blinkdetect.models.irislandmarks import IrisLandmarks
+from bdlib.models.facemesh import FaceMesh
+from bdlib.models.irislandmarks import IrisLandmarks
 
 print("PyTorch version:", torch.__version__)
 print("CUDA version:", torch.version.cuda)
@@ -65,19 +67,19 @@ if __name__ == "__main__":
         videos_progress.set_postfix(video=video_name)
         frames_root = os.path.normpath(
             os.path.join(os.path.dirname(video_path), "frames")
-            )
+        )
         faces_detection_file_path = os.path.normpath(
             os.path.join(
                 dataset_root, "faces", args.dataset,
                 video_name, 'faceinfo_v2.pkl')
-            )
+        )
         # load detections
         with open(faces_detection_file_path, "rb") as _dets_file:
             faces_detections = pickle.load(_dets_file)
         # output
         new_dir = os.path.join(
             dataset_root, "eye-cutouts", args.dataset, video_name
-            )
+        )
 
         #
         if os.path.exists(new_dir):
@@ -104,7 +106,7 @@ if __name__ == "__main__":
             nose = faces['face_1']['landmarks']['nose']
             facial_img_org = (
                 img[bbox_org[1]:bbox_org[3], bbox_org[0]:bbox_org[2]]
-                )
+            )
             # 0.25 margin
             H = bbox_org[3] - bbox_org[1]
             W = bbox_org[2] - bbox_org[0]
@@ -112,20 +114,20 @@ if __name__ == "__main__":
             down = (
                 int(bbox_org[3]+0.25*H)
                 if int(bbox_org[3]+0.25*H) < img.shape[0] else img.shape[0]
-                )
+            )
             left = (
                 int(bbox_org[0]-0.25*W) if int(bbox_org[0]-0.25*W) > 0 else 0
-                )
+            )
             right = (
                 int(bbox_org[2]+0.25*W)
                 if int(bbox_org[2]+0.25*W) < img.shape[1] else img.shape[1]
-                )
+            )
             bbox_m = [left, up, right, down]
             facial_img_m = img[bbox_m[1]:bbox_m[3], bbox_m[0]:bbox_m[2]]
             # alignment
             aligned_facial_img = alignment_procedure(
                 facial_img_m, right_eye, left_eye
-                )
+            )
             # face mesh
             img_mesh = aligned_facial_img.copy()
             img_mesh = cv2.resize(img_mesh, (192, 192))
@@ -137,10 +139,10 @@ if __name__ == "__main__":
             _detections = {"left": None, "right": None}
             detections_left = np.array(
                 list(map(detections.__getitem__, left_eye))
-                )
+            )
             detections_right = np.array(
                 list(map(detections.__getitem__, right_eye))
-                )
+            )
             _detections["left"] = detections_left
             _detections["right"] = detections_right
             for eye_key in _detections.keys():

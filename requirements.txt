@@ -12,5 +12,7 @@ tables==3.6.1
 deepface==0.0.63
 Cython==0.29.24
 git+ssh://git@bitbucket.org/arguscognitive/argusutil.git@v0.4.1#subdirectory=python
+git+ssh://git@github.com/SohilZidan/bdlib.git
 paramiko==2.7.2
 pickle5==0.0.11
+pyaml==21.10.1

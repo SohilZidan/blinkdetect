@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-# coding: utf-8
-
 
 import os
 import argparse
@@ -8,7 +6,7 @@ import pandas as pd
 import tqdm
 import cv2
 
-from blinkdetect.eyelandmarks import IrisHandler
+from bdlib.eyelandmarks import IrisHandler
 
 import mediapipe as mp
 mp_face_detection = mp.solutions.face_detection
@@ -21,12 +19,12 @@ def parse():
         "--annotations",
         required=True,
         help="annotations file"
-        )
+    )
     parser.add_argument(
         "--output",
         required=True,
         help="output folder"
-        )
+    )
     return parser.parse_args()
 
 
@@ -54,12 +52,12 @@ if __name__ == "__main__":
         left_eye = temporal_blinking.iloc[idx]["left_eye"]
         right_eye = temporal_blinking.iloc[idx]["right_eye"]
         face_landmarks = {
-            "facial_area" : facial_area,
+            "facial_area": facial_area,
             "landmarks": {
                 "left_eye": left_eye,
                 "right_eye": right_eye
-                }
             }
+        }
 
         img = cv2.imread(file_path, cv2.IMREAD_COLOR)
 
@@ -69,17 +67,14 @@ if __name__ == "__main__":
             irisesDiameters = {"left": -1, "right": -1}
             pupil2corners = {"left": -1, "right": -1}
         else:
-            eyelidsDistances, irisesDiameters, pupil2corners = iris_marker.extract_features(img, True, face_landmarks)
+            eyelidsDistances, irisesDiameters, pupil2corners = iris_marker.extract_features(
+                img, True, face_landmarks)
 
         # append the new data
         for eye_idx in eyelidsDistances.keys():
             eyelids_dists[eye_idx].append(eyelidsDistances[eye_idx])
             iris_diameters[eye_idx].append(irisesDiameters[eye_idx])
             pupil_dists[eye_idx].append(pupil2corners[eye_idx])
-
-
-
-
 
     # args = parse()
 
@@ -161,14 +156,14 @@ if __name__ == "__main__":
     #                     # faces.append(face_landmarks["facial_area"])
     #                     # left_eyes.append(face_landmarks["landmarks"]["left_eye"])
     #                     # right_eyes.append(face_landmarks["landmarks"]["right_eye"])
-    
+
     #                 # append the new data
     #                 for eye_idx in ["left", "right"]:
     #                     eyelids_dists[eye_idx].append(eyelidsDistances[eye_idx])
     #                     iris_diameters[eye_idx].append(irisesDiameters[eye_idx])
     #                     pupil_dists[eye_idx].append(pupil2corners[eye_idx])
 
-                # print(temporal_blinking.loc[(sub, label, interval)].iloc[idx])
+            # print(temporal_blinking.loc[(sub, label, interval)].iloc[idx])
 
     for eye_key in eyelids_dists.keys():
         temporal_blinking[f"{eye_key}_eyelids_dist"] = eyelids_dists[eye_key]

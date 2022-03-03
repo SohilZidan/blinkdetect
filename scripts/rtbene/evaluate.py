@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# coding: utf-8
 
 import os
 import shutil
@@ -12,7 +11,7 @@ import tqdm
 import matplotlib.pyplot as plt
 from scipy.stats import kde
 from dataloader import extract_svm_features
-from blinkdetect.image.misc import cut_region
+from bdlib.image.misc import cut_region
 from sklearn.metrics import confusion_matrix, classification_report
 
 
@@ -24,7 +23,7 @@ def parse():
         "--annotations",
         required=True,
         help="annotations file"
-        )
+    )
     parser.add_argument(
         "--model",
         required=True,
@@ -53,12 +52,13 @@ def draw_angles_dist(correct, correct_std, wrong, wrong_std, angles_dist_file):
     fig, axs = plt.subplots(nrows=2, ncols=2, sharex=True, sharey=True)
     fig.add_subplot(111, frameon=False)
     # hide tick and tick label of the big axis
-    plt.tick_params(labelcolor='none', top=False, bottom=False, left=False, right=False)
+    plt.tick_params(labelcolor='none', top=False,
+                    bottom=False, left=False, right=False)
     plt.xlabel("Yaw")
     plt.ylabel("Pitch")
 
-    #plt.axvline(0,c="k")
-    #plt.axhline(0,c="k")
+    # plt.axvline(0,c="k")
+    # plt.axhline(0,c="k")
     # find min and max
     xmins = []
     xmaxes = []
@@ -75,21 +75,22 @@ def draw_angles_dist(correct, correct_std, wrong, wrong_std, angles_dist_file):
     max_x = np.max(xmaxes)
     max_y = np.max(ymaxes)
 
-
     if len(tp_tn) > 0:
         # mean
         _yaw_means, _pitch_means = tp_tn
         data_tp = np.vstack([_yaw_means, _pitch_means])
         x, y = data_tp
-    
+
         k = kde.gaussian_kde(data_tp)
         #xi, yi = np.mgrid[x.min():x.max():nbins*1j, y.min():y.max():nbins*1j]
         xi, yi = np.mgrid[min_x:max_x:nbins*1j, min_y:max_y:nbins*1j]
         zi = k(np.vstack([xi.flatten(), yi.flatten()]))
         axs[0, 0]
-        axs[0, 0].pcolormesh(xi, yi, zi.reshape(xi.shape), shading='gouraud', cmap=plt.cm.Blues, label=f"TP: {len(_yaw_means)}")
+        axs[0, 0].pcolormesh(xi, yi, zi.reshape(
+            xi.shape), shading='gouraud', cmap=plt.cm.Blues, label=f"TP: {len(_yaw_means)}")
         axs[0, 0].set_aspect(1)
-        axs[0, 0].set_title(f"correct (mean): {len(_yaw_means)}", fontsize='small')
+        axs[0, 0].set_title(
+            f"correct (mean): {len(_yaw_means)}", fontsize='small')
         axs[0, 0].grid()
         #plt.scatter(_yaw_means, _pitch_means, s=8, marker="o", c='g', label=f"TP: {len(_tp)}")
 
@@ -97,15 +98,17 @@ def draw_angles_dist(correct, correct_std, wrong, wrong_std, angles_dist_file):
         _yaw_means, _pitch_means = tp_tn_std
         data_tp = np.vstack([_yaw_means, _pitch_means])
         x, y = data_tp
-    
+
         k = kde.gaussian_kde(data_tp)
         #xi, yi = np.mgrid[x.min():x.max():nbins*1j, y.min():y.max():nbins*1j]
         xi, yi = np.mgrid[min_x:max_x:nbins*1j, min_y:max_y:nbins*1j]
         zi = k(np.vstack([xi.flatten(), yi.flatten()]))
         axs[1, 0]
-        axs[1, 0].pcolormesh(xi, yi, zi.reshape(xi.shape), shading='gouraud', cmap=plt.cm.Blues, label=f"TP: {len(_yaw_means)}")
+        axs[1, 0].pcolormesh(xi, yi, zi.reshape(
+            xi.shape), shading='gouraud', cmap=plt.cm.Blues, label=f"TP: {len(_yaw_means)}")
         axs[1, 0].set_aspect(1)
-        axs[1, 0].set_title(f"correct (std): {len(_yaw_means)}", fontsize='small')
+        axs[1, 0].set_title(
+            f"correct (std): {len(_yaw_means)}", fontsize='small')
         axs[1, 0].grid()
 
     if len(fp_fn) > 0:
@@ -118,9 +121,11 @@ def draw_angles_dist(correct, correct_std, wrong, wrong_std, angles_dist_file):
 
         xi, yi = np.mgrid[min_x:max_x:nbins*1j, min_y:max_y:nbins*1j]
         zi = k(np.vstack([xi.flatten(), yi.flatten()]))
-        axs[0, 1].pcolormesh(xi, yi, zi.reshape(xi.shape), shading='gouraud', cmap=plt.cm.Reds, label=f"FP: {len(_yaw_means)}")
+        axs[0, 1].pcolormesh(xi, yi, zi.reshape(
+            xi.shape), shading='gouraud', cmap=plt.cm.Reds, label=f"FP: {len(_yaw_means)}")
         axs[0, 1].set_aspect(1)
-        axs[0, 1].set_title(f"Wrong (mean): {len(_yaw_means)}", fontsize='small')
+        axs[0, 1].set_title(
+            f"Wrong (mean): {len(_yaw_means)}", fontsize='small')
         axs[0, 1].grid()
 
         # std
@@ -132,9 +137,11 @@ def draw_angles_dist(correct, correct_std, wrong, wrong_std, angles_dist_file):
 
         xi, yi = np.mgrid[min_x:max_x:nbins*1j, min_y:max_y:nbins*1j]
         zi = k(np.vstack([xi.flatten(), yi.flatten()]))
-        axs[1, 1].pcolormesh(xi, yi, zi.reshape(xi.shape), shading='gouraud', cmap=plt.cm.Reds, label=f"FP: {len(_yaw_means)}")
+        axs[1, 1].pcolormesh(xi, yi, zi.reshape(
+            xi.shape), shading='gouraud', cmap=plt.cm.Reds, label=f"FP: {len(_yaw_means)}")
         axs[1, 1].set_aspect(1)
-        axs[1, 1].set_title(f"Wrong (std): {len(_yaw_means)}", fontsize='small')
+        axs[1, 1].set_title(
+            f"Wrong (std): {len(_yaw_means)}", fontsize='small')
         axs[1, 1].grid()
 
     plt.savefig(angles_dist_file, dpi=300, bbox_inches='tight')
@@ -142,11 +149,11 @@ def draw_angles_dist(correct, correct_std, wrong, wrong_std, angles_dist_file):
 
 
 def eval_dataset(
-    annotations_file,
-    model,
-    output_folder,
-    leftout_annotations=[-1, 5],
-    draw_false_clips=False):
+        annotations_file,
+        model,
+        output_folder,
+        leftout_annotations=[-1, 5],
+        draw_false_clips=False):
     # read annotations
     temporal_blinking = pd.read_hdf(annotations_file, "temporal_blinking")
     temporal_blinking = temporal_blinking.sort_index()
@@ -170,7 +177,7 @@ def eval_dataset(
         sample_signal = temporal_blinking.loc[sample_idx]
 
         features, label = extract_svm_features(sample_signal)
-        pred_label = model.predict(features[:30].reshape(1,-1))
+        pred_label = model.predict(features[:30].reshape(1, -1))
         pred_label = pred_label[0]
 
         # retrieve info for plotting
@@ -178,9 +185,11 @@ def eval_dataset(
         tmp_yaws = sample_signal["yaw"]
         tmp_pitchs = sample_signal["pitch"]
         bboxes = sample_signal["facial_area"]
-        eyelid_dist = sample_signal["right_eyelids_dist"] + sample_signal["left_eyelids_dist"]
+        eyelid_dist = sample_signal["right_eyelids_dist"] + \
+            sample_signal["left_eyelids_dist"]
         eyelid_dist /= 2.
-        diameter = sample_signal["right_diameter"] + sample_signal["left_diameter"]
+        diameter = sample_signal["right_diameter"] + \
+            sample_signal["left_diameter"]
         diameter /= 2.
 
         try:
@@ -197,8 +206,10 @@ def eval_dataset(
             # clip folder
             clip_folder = "-".join([sample_idx[0], sample_idx[3]])
 
-            output_dir = os.path.join(output_folder, f"GT_{label}", f"pred_{pred_label}", clip_folder)
-            output_dir_w_features = os.path.join(f"{output_folder}-features", f"GT_{label}", f"pred_{pred_label}", clip_folder)
+            output_dir = os.path.join(
+                output_folder, f"GT_{label}", f"pred_{pred_label}", clip_folder)
+            output_dir_w_features = os.path.join(
+                f"{output_folder}-features", f"GT_{label}", f"pred_{pred_label}", clip_folder)
             os.makedirs(output_dir, exist_ok=True)
             os.makedirs(output_dir_w_features, exist_ok=True)
             for idx, file_path in enumerate(sample_signal["file_path"]):
@@ -212,18 +223,21 @@ def eval_dataset(
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 _, frame = cut_region(frame, bboxes[idx])
 
-                axs[0].imshow(frame)#, cmap='gray')
+                axs[0].imshow(frame)  # , cmap='gray')
                 axs[0].xaxis.set_visible(False)
                 axs[0].yaxis.set_visible(False)
 
                 axs[1].plot(frames_names, diameter, c="b")
-                axs[1].scatter(frames_names, diameter, s=8, marker="o", c="b",  label="iris diameter")
+                axs[1].scatter(frames_names, diameter, s=8,
+                               marker="o", c="b",  label="iris diameter")
 
                 axs[1].plot(frames_names, eyelid_dist, c="r")
-                axs[1].scatter(frames_names, eyelid_dist, s=8, marker="o", c="r",  label="eyelids dist")
+                axs[1].scatter(frames_names, eyelid_dist, s=8,
+                               marker="o", c="r",  label="eyelids dist")
 
                 axs[1].plot(frames_names, features[:30], c="m")
-                axs[1].scatter(frames_names, features[:30], s=8, marker="o", c="m",  label="eyelids-normalized")
+                axs[1].scatter(frames_names, features[:30], s=8,
+                               marker="o", c="m",  label="eyelids-normalized")
 
                 # axs[1].plot(frames_names, features[30:], c="k")
                 # axs[1].scatter(frames_names, features[30:], s=8, marker="o", c="k",  label="pupil2corner-features")
@@ -233,7 +247,8 @@ def eval_dataset(
                 fig.legend()
 
                 new_frame_name, ext = os.path.splitext(file_name)
-                frame_path_new = os.path.join(output_dir_w_features, new_frame_name+"_plots"+f"{ext}")
+                frame_path_new = os.path.join(
+                    output_dir_w_features, new_frame_name+"_plots"+f"{ext}")
                 plt.savefig(frame_path_new, dpi=300, bbox_inches='tight')
                 plt.close(fig)
             drownCount = drownCount + 1
@@ -251,22 +266,28 @@ def eval_dataset(
         pitch_stds.append(pitch_std)
 
     print("confusion matrix:\n", confusion_matrix(gt_labels, pred_labels))
-    print("classification report:\n", classification_report(gt_labels, pred_labels))
+    print("classification report:\n",
+          classification_report(gt_labels, pred_labels))
 
     # draw angle distribution
     angle_dist_file = os.path.join(output_folder, "angle_dist.png")
 
-    correct_classified = [(yaws[idx], pitchs[idx]) for idx, gt_label in enumerate(gt_labels) if gt_label == pred_labels[idx]]
+    correct_classified = [(yaws[idx], pitchs[idx]) for idx, gt_label in enumerate(
+        gt_labels) if gt_label == pred_labels[idx]]
     correct_classified = list(zip(*correct_classified))
-    correct_classified_std = [(yaw_stds[idx], pitch_stds[idx]) for idx, gt_label in enumerate(gt_labels) if gt_label == pred_labels[idx]]
+    correct_classified_std = [(yaw_stds[idx], pitch_stds[idx]) for idx, gt_label in enumerate(
+        gt_labels) if gt_label == pred_labels[idx]]
     correct_classified_std = list(zip(*correct_classified_std))
 
-    wrong_classified = [(yaws[idx], pitchs[idx]) for idx, gt_label in enumerate(gt_labels) if gt_label != pred_labels[idx]]
+    wrong_classified = [(yaws[idx], pitchs[idx]) for idx, gt_label in enumerate(
+        gt_labels) if gt_label != pred_labels[idx]]
     wrong_classified = list(zip(*wrong_classified))
-    wrong_classified_std = [(yaw_stds[idx], pitch_stds[idx]) for idx, gt_label in enumerate(gt_labels) if gt_label != pred_labels[idx]]
+    wrong_classified_std = [(yaw_stds[idx], pitch_stds[idx]) for idx, gt_label in enumerate(
+        gt_labels) if gt_label != pred_labels[idx]]
     wrong_classified_std = list(zip(*wrong_classified_std))
 
-    draw_angles_dist(correct_classified, correct_classified_std, wrong_classified, wrong_classified_std, angle_dist_file)
+    draw_angles_dist(correct_classified, correct_classified_std,
+                     wrong_classified, wrong_classified_std, angle_dist_file)
 
     # draw score distribution
 
@@ -279,4 +300,5 @@ if __name__ == "__main__":
         model = pickle.load(file)
 
     # eval
-    eval_dataset(args.annotations, model, args.output, draw_false_clips=args.false_clips)
+    eval_dataset(args.annotations, model, args.output,
+                 draw_false_clips=args.false_clips)

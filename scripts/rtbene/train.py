@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# coding: utf-8
 
 import argparse
 
@@ -22,13 +21,14 @@ from sklearn import svm
 
 from dataloader import load_dataset
 
+
 def parse():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--annotations",
         required=True,
         help="annotations file"
-        )
+    )
     parser.add_argument(
         "--output_model",
         required=True,
@@ -45,16 +45,17 @@ def parse():
 
 def random_forest(X, y):
     # Cross-validation
-    model = RandomForestClassifier()#n_estimators=6, max_depth=6, random_state=0)
+    model = RandomForestClassifier()  # n_estimators=6, max_depth=6, random_state=0)
     cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=1)
-    n_scores = cross_val_score(model, X, y, scoring='accuracy', cv=cv, n_jobs=1, error_score='raise')
+    n_scores = cross_val_score(
+        model, X, y, scoring='accuracy', cv=cv, n_jobs=1, error_score='raise')
 
     # report performance
     print('Accuracy: %.3f (%.3f)' % (mean(n_scores), std(n_scores)))
 
     # Train a model
     X_train, X_test, y_train, y_test = train_test_split(X, y,
-        test_size=0.2, stratify = y, random_state=1)
+                                                        test_size=0.2, stratify=y, random_state=1)
 
     # model = RandomForestClassifier(n_estimators=6, max_depth=6, random_state=0, class_weight="balanced")
     model = RandomForestClassifier(class_weight="balanced")
@@ -77,10 +78,12 @@ def random_forest(X, y):
 
 
 def svm_multiclass(X, y):
-    X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=0.80, test_size=0.20, random_state=101, stratify=y)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, train_size=0.80, test_size=0.20, random_state=101, stratify=y)
 
     # rbf = svm.SVC(kernel='rbf', gamma=0.5, C=0.1, class_weight="balanced").fit(X_train, y_train)
-    rbf = svm.SVC(kernel='poly', degree=4, C=0.01, class_weight="balanced").fit(X_train, y_train)
+    rbf = svm.SVC(kernel='poly', degree=4, C=0.01,
+                  class_weight="balanced").fit(X_train, y_train)
 
     # Train
     print("Training set evaluation results:")
@@ -99,16 +102,17 @@ def svm_multiclass(X, y):
     print("classification report:\n", classification_report(y_test, rbf_pred))
 
 
-def svm_gridSeach(X,y, output_model_path):
+def svm_gridSeach(X, y, output_model_path):
     param_grid = {
         'C': [0.01, 0.1, 1],
         'gamma': ["scale", "auto", 1, 0.1, 0.01, 0.001],
         'kernel': ['linear', 'rbf', 'poly'],
         'degree': [2, 3, 4],
-        'class_weight': ['balanced'],}
-        # 'probability': [True]}
+        'class_weight': ['balanced'], }
+    # 'probability': [True]}
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=0.80, test_size=0.20, random_state=101, stratify=y)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, train_size=0.80, test_size=0.20, random_state=101, stratify=y)
 
     grid = GridSearchCV(
         svm.SVC(), param_grid,
@@ -116,7 +120,7 @@ def svm_gridSeach(X,y, output_model_path):
         scoring=["f1_micro"],
         cv=StratifiedKFold(n_splits=5),
         n_jobs=1)
-    grid.fit(X_train,y_train)
+    grid.fit(X_train, y_train)
 
     print(grid.best_estimator_)
 
@@ -124,23 +128,26 @@ def svm_gridSeach(X,y, output_model_path):
     print("Training set evaluation results:")
     grid_predictions = grid.best_estimator_.predict(X_train)
     print("confusion matrix:\n", confusion_matrix(y_train, grid_predictions))
-    print("classification report:\n", classification_report(y_train, grid_predictions))
+    print("classification report:\n",
+          classification_report(y_train, grid_predictions))
     # Test
     print("Testing set evaluation results:")
     grid_predictions = grid.best_estimator_.predict(X_test)
-    print("confusion matrix:\n", confusion_matrix(y_test,grid_predictions))
-    print("classification report:\n", classification_report(y_test,grid_predictions))
+    print("confusion matrix:\n", confusion_matrix(y_test, grid_predictions))
+    print("classification report:\n",
+          classification_report(y_test, grid_predictions))
 
     # Save
     with open(output_model_path, 'wb') as file:
         pickle.dump(grid.best_estimator_, file)
-    
+
 
 if __name__ == "__main__":
     args = parse()
 
     # load dataset
-    X, y, _ = load_dataset(args.annotations, augment=True, normalize=False, threshold=args.threshold)
+    X, y, _ = load_dataset(args.annotations, augment=True,
+                           normalize=False, threshold=args.threshold)
     print("Data loaded")
 
     # Random Forest
@@ -150,7 +157,7 @@ if __name__ == "__main__":
     # svm_multiclass(X, y)
 
     # SVM - GridSearch
-    svm_gridSeach(X,y, args.output_model)
+    svm_gridSeach(X, y, args.output_model)
 
     # Best Parameters
     # SVC(C=1, break_ties=False, cache_size=200, class_weight=None, coef0=0.0,

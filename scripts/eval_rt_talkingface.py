@@ -1,13 +1,13 @@
-from pandas.core import frame
-import tqdm
-import json
+#!/usr/bin/env python3
+
 import os
+import glob
+import json
 import argparse
 import pickle
-import glob
-import numpy as np
-from blinkdetect.argus_utils import get_blinking_annotation
-from blinkdetect.common import read_annotations_tag
+import tqdm
+from bdlib.argus_utils import get_blinking_annotation
+from bdlib.common import read_annotations_tag
 from sklearn.metrics import classification_report, confusion_matrix
 
 
@@ -19,7 +19,7 @@ def parse():
             "BlinkingValidationSetVideos", "eyeblink8",
             "talkingFace", "zju", "RN"],
         default="talkingFace"
-            )
+    )
     parser.add_argument(
         "--dataset_root",
         required=True,
@@ -33,9 +33,6 @@ def parse():
     #     "--face_found", action="store_true")
     args = parser.parse_args()
     return args
-
-
-
 
 
 if __name__ == "__main__":
@@ -109,7 +106,8 @@ if __name__ == "__main__":
             if len(annotation_paths) != 1:
                 exit()
             annotaions_file_tag = annotation_paths[0]
-            closeness_list_dict, blinking_anns = read_annotations_tag(annotaions_file_tag)
+            closeness_list_dict, blinking_anns = read_annotations_tag(
+                annotaions_file_tag)
             all_anns += len(closeness_list_dict)
         #
         # closeness_list = [closeness_list_dict[_key] for _key in sorted(closeness_list_dict.keys())]
@@ -141,9 +139,9 @@ if __name__ == "__main__":
         # if args.dataset != "BlinkingValidationSetVideos":
         #     closed_eyes = closed_eyes_preds
         # for _idx, _frame in enumerate(frames):
-            # if _frame in closeness_list_dict:
+        # if _frame in closeness_list_dict:
 
-        # closed_eyes_t = [] 
+        # closed_eyes_t = []
         # for sublist in closed_eyes:
         #     for i in sublist:
         #         if i: closed_eyes_t.append(1.)
@@ -156,7 +154,7 @@ if __name__ == "__main__":
         # pitch_preds = get_intervals_between(pitch_angles, val=args.pitch_range)
         # #
         # blink_preds = get_intervals(np.array(closed_eyes).tolist(), val=1)
-        
+
         frames_seg = frames[0].split("_")
         if len(frames_seg) == 3:
             shift_amount = frames_seg[1]
@@ -179,9 +177,11 @@ if __name__ == "__main__":
         # print(results[video_name]['metric'])
         if args.dataset != "BlinkingValidationSetVideos":
             if confusion_matrix_all is None:
-                confusion_matrix_all = confusion_matrix(closeness_list, closed_eyes)
+                confusion_matrix_all = confusion_matrix(
+                    closeness_list, closed_eyes)
             else:
-                confusion_matrix_all += confusion_matrix(closeness_list, closed_eyes)
+                confusion_matrix_all += confusion_matrix(
+                    closeness_list, closed_eyes)
             print(confusion_matrix(closeness_list, closed_eyes))
             print(classification_report(closeness_list, closed_eyes))
 
@@ -191,7 +191,7 @@ if __name__ == "__main__":
     # with open("./res.txt", "w") as f:
     #     mylist = list(zip(closeness_list, closed_eyes))
     #     f.write('\n'.join('%s %s' % x for x in mylist))
- 
+
     print("annotated frames:", all_anns)
     with open(meta_file, "w") as f:
         json.dump(results, f)
